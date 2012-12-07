@@ -1,4 +1,8 @@
-﻿(function ($) {
+﻿/*
+    Gridify - 2012
+    Create by: Luís Fernando Vendrame
+*/
+(function ($) {
     $.fn.Gridify = function (options, columns) {
 
         var defaults = {
@@ -11,7 +15,8 @@
             onSelectRow: function (rowIndex, row, redrawRow) { },
             lang: {
                 sumary: "Exibindo de {fromRow} até {toRow} de um total de {totalRows}",
-                itensPerPageMessage: "Itens exibidos por página: "
+                itensPerPageMessage: "Itens exibidos por página: ",
+                emptyDataMessage: "Nenhum registro foi encontrado."
             }
         };
 
@@ -62,7 +67,7 @@
                     tr.append(th);
 
                     if ((settings.autoSort && columnDef.dataColumn) || columnDef.sortColumn) {
-                        var sorter = $("<a href='javascript:void(0);'>&#9670;</a>");
+                        var sorter = $("<a href='javascript:void(0);'>&#8597;</a>");
                         var lnkS = sorter.get(0);
                         th.append(sorter);
 
@@ -85,7 +90,7 @@
                             else {
                                 table.sortColumns[this.sortColumn] = "none";
                                 this.orderDir = 0;
-                                $(this).html("&#9670;");
+                                $(this).html("&#8597;");
                             }
                             table.search(false);
                         });
@@ -175,8 +180,22 @@
         return this.each(function () {
             var table = $(this);
             var header = table.find("thead");
+            if (header.length == 0) {
+                header = $("<thead></thead>");
+                table.append(header);
+            }
+
             var body = table.find("tbody");
+            if (body.length == 0) {
+                body = $("<tbody></tbody>");
+                table.append(body);
+            }
+
             var footer = table.find("tfoot");
+            if (footer.length == 0) {
+                footer = $("<tfoot></tfoot>");
+                table.append(footer);
+            }
 
             /*Inicialização de valores*/
             table.addClass('tblGdy');
@@ -194,34 +213,21 @@
 
             table.init();
 
-            /*Criação do seletor de tamanho de página*/
-
-            table.dropdownSize = $(document.createElement("select"));
-            table.dropdownSize.change(function () {
-                table.pageSize = $(this).val();
-                table.init();
-                table.paginate();
-                if (table.search) {
-                    table.search(false);
-                }
-            });
-
-            for (var idxOpt in settings.pageSizeOptions) {
-                var sizeOpt = settings.pageSizeOptions[idxOpt];
-                table.dropdownSize.append($('<option></option>').val(sizeOpt).html(sizeOpt));
-
-                if (sizeOpt == settings.initialPageSize) {
-                    table.dropdownSize.val(sizeOpt);
-                }
-            }
-            var _divTmp = $("<div style='float:left'></div>");
-            var msgDdl = $("<span>" + settings.lang.itensPerPageMessage + "</span>");
-            _divTmp.append(msgDdl).append(table.dropdownSize);
-            footer.find("tr td").append(_divTmp);
+            //            var _divTmp = $("<div class='gfy-Tmp' style='float:left'></div>");
+            //            var msgDdl = $("<span>" + settings.lang.itensPerPageMessage + "</span>");
+            //            _divTmp.append(msgDdl).append(table.dropdownSize);
+            //            footer.find("tr td").append(_divTmp);
 
             /*Setar o tatal de linhas*/
             table.setTotalRows = function (totalRows) {
                 table.totalRows = totalRows;
+
+                if (table.totalRows == 0) {
+                    table.showEmptyDataMessage();
+                }
+                else {
+                    settings.search(table.page - 1, table.pageSize, table.getSortExpression(), table.binder);
+                }
             };
 
             table.getSortExpression = function () {
@@ -249,6 +255,35 @@
             /*Criação do paginador*/
             table.paginate = function () {
 
+                footer.html("<tr><td colspan='" + table.columnsCount + "'></td></tr>");
+
+                /*Criação do seletor de tamanho de página*/
+                table.dropdownSize = $(document.createElement("select"));
+                table.dropdownSize.change(function () {
+                    table.pageSize = $(this).val();
+                    table.init();
+                    table.paginate();
+                    if (table.search) {
+                        table.search(false);
+                    }
+                });
+
+                for (var idxOpt in settings.pageSizeOptions) {
+                    var sizeOpt = settings.pageSizeOptions[idxOpt];
+                    table.dropdownSize.append($('<option></option>').val(sizeOpt).html(sizeOpt));
+
+                    if (sizeOpt == table.pageSize) {
+                        table.dropdownSize.val(sizeOpt);
+                    }
+                }
+
+                //DropDownSize - Add Begin
+                var _divTmp = $("<div class='gfy-Tmp' style='float:left'></div>");
+                var msgDdl = $("<span>" + settings.lang.itensPerPageMessage + "</span>");
+                _divTmp.append(msgDdl).append(table.dropdownSize);
+                footer.find("tr td").append(_divTmp);
+                //DropDownSize - End
+
                 var qtt = parseInt(table.totalRows / table.pageSize);
                 if (qtt < (table.totalRows / table.pageSize))
                     qtt++;
@@ -263,11 +298,11 @@
                     footer.find("tr td").append(table.divPagging);
                 }
 
-                var first = $("<a href='javascript:void(0);'>&lt;&lt;</a>");
-                var last = $("<a href='javascript:void(0);'>&gt;&gt;</a>");
-                var previous = $("<a href='javascript:void(0);'>&lt;</a>");
-                var next = $("<a href='javascript:void(0);'>&gt;</a>");
-                var ulPages = $("<ul></ul>");
+                var first = $("<a class='gfyFirst' href='javascript:void(0);'>&lt;&lt;</a>");
+                var last = $("<a class='gfyLast' href='javascript:void(0);'>&gt;&gt;</a>");
+                var previous = $("<a class='gfyPrevious' href='javascript:void(0);'>&lt;</a>");
+                var next = $("<a class='gfyNext' href='javascript:void(0);'>&gt;</a>");
+                var ulPages = $("<ul class='gfyPages'></ul>");
                 table.divPagging.append(first);
                 table.divPagging.append(previous);
                 table.divPagging.append(ulPages);
@@ -297,6 +332,9 @@
                 });
 
                 ulPages.find("#lpg" + table.page).toggleClass("selectedPg");
+
+                table.divPagging.css("margin-left", -(table.divPagging.width() / 2));
+
                 table.createSumary();
             };
 
@@ -305,15 +343,16 @@
 
                 var divNumbers = fr.find(".gdySumary")
                 if (divNumbers.length == 0) {
-                    divNumbers = $("<div class='gdySumary' style='float:left'></div>");
+                    divNumbers = $("<div class='gdySumary' style='float:right'></div>");
                     fr.append(divNumbers);
                 }
                 else {
                     divNumbers.html("");
                 }
+                var total = table.toRow < table.totalRows ? table.toRow : table.totalRows;
 
                 var sumary = settings.lang.sumary.replace(/({fromRow})/gi, table.fromRow)
-                    .replace(/({toRow})/gi, table.toRow)
+                    .replace(/({toRow})/gi, total)
                     .replace(/({totalRows})/gi, table.totalRows);
                 var span = $("<span></span>");
                 span.append(document.createTextNode(sumary));
@@ -336,6 +375,10 @@
                 if (table.search) {
                     table.search(false);
                 }
+            };
+
+            table.showEmptyDataMessage = function () {
+                table.html("<tr><td>" + settings.lang.emptyDataMessage + "</td></tr>");
             };
 
             /* Alimentação da Estrutura da Página */
@@ -383,8 +426,9 @@
                 if (newSearch) {
                     settings.getTotalRows(table.setTotalRows);
                 }
-
-                settings.search(table.page - 1, table.pageSize, table.getSortExpression(), table.binder);
+                else {
+                    settings.search(table.page - 1, table.pageSize, table.getSortExpression(), table.binder);
+                }
             };
 
             table.search(true);
