@@ -1,9 +1,9 @@
 ﻿/*
     Gridify - 2012
-    Create by: Luís Fernando Vendrame
+    Created by: Luís Fernando Vendrame
 */
 (function ($) {
-    $.fn.Gridify = function (options, columns) {
+    $.fn.Gridify = function (options, columns, lang) {
 
         var defaults = {
             search: function (page, pageSize, sortExpression, binder) { },
@@ -12,17 +12,28 @@
             templateRow: null,
             autoSort: true,
             pageSizeOptions: [5, 10, 15, 25, 50],
-            onSelectRow: function (rowIndex, row, redrawRow) { },
-            lang: {
-                sumary: "Exibindo de {fromRow} até {toRow} de um total de {totalRows}",
-                itensPerPageMessage: "Itens exibidos por página: ",
-                emptyDataMessage: "Nenhum registro foi encontrado."
-            }
+            onSelectRow: function (rowIndex, row, redrawRow) { }
+        };
+
+        var def_lang = {
+            sumary: "Exibindo de {fromRow} até {toRow} de um total de {totalRows}",
+            itensPerPageMessage: "Itens exibidos por página: ",
+            emptyDataMessage: "Nenhum registro foi encontrado.",
+            page_previous: "&lt;",
+            page_next: "&gt;",
+            page_first: "&lt;&lt;",
+            page_last: "&gt;&gt;",
+            sort_none: "&#8597;",
+            sort_asc: "&#9660;",
+            sort_desc: "&#9650;"
         };
 
         //(^\${)(\w*)(})
 
         var settings = $.extend({}, defaults, options);
+        var language = $.extend({}, def_lang, lang);
+
+        settings.lang = language;
 
 
         //        columns{
@@ -33,8 +44,10 @@
         //                formatFunction: function(item, data, dataName){ return data.toString(); },
         //                dataColumn: "nomeCampo",
         //                sortColumn: "nomeCampo",
+        //                initialSort: '',
         //                showDetailRow: function(detail, row, closeDetail){ detail.append("<span>Detalhes</span>")},
         //                style: {backgroundColor:"#fff", heigth: "35px"},
+        //                afterCreated: function(item, cell){},
         //                class: ""
         //            },
         //            "header 2"{
@@ -42,8 +55,10 @@
         //                formatFunction: function(item, data, dataName){ return data.toString(); },
         //                dataColumn: "nomeCampo",
         //                sortColumn: "nomeCampo",
+        //                initialSort: '', // asc | desc | none
         //                showDetailRow: function(detail, row, closeDetail){ detail.append("<span>Detalhes</span>")},
         //                style: {backgroundColor:"#fff", heigth: "35px"},
+        //                afterCreated: function(item, cell){},
         //                class: ""
         //            }
         //        }
@@ -67,7 +82,21 @@
                     tr.append(th);
 
                     if ((settings.autoSort && columnDef.dataColumn) || columnDef.sortColumn) {
-                        var sorter = $("<a href='javascript:void(0);'>&#8597;</a>");
+
+                        var sortSymbol = settings.lang.sort_none;
+                        var _orderDir = 0;
+                        if (columnDef.initialSort) {
+                            if (columnDef.initialSort == "asc") {
+                                sortSymbol = settings.lang.sort_asc;
+                                _orderDir = 1;
+                            }
+                            else if (columnDef.initialSort == "desc") {
+                                sortSymbol = settings.lang.sort_desc;
+                                _orderDir = 2;
+                            }
+                        }
+
+                        var sorter = $("<a href='javascript:void(0);'>" + sortSymbol + "</a>");
                         var lnkS = sorter.get(0);
                         th.append(sorter);
 
@@ -76,21 +105,26 @@
                         else
                             lnkS.sortColumn = columnDef.dataColumn;
 
+                        if (columnDef.initialSort) {
+                            table.sortColumns[lnkS.sortColumn] = columnDef.initialSort;
+                            lnkS.orderDir = _orderDir;
+                        }
+
                         sorter.click(function () {
                             if (!this.orderDir || this.orderDir == 0) {
                                 table.sortColumns[this.sortColumn] = "asc";
                                 this.orderDir = 1;
-                                $(this).html("&#9660;");
+                                $(this).html(settings.lang.sort_asc);
                             }
                             else if (this.orderDir == 1) {
                                 table.sortColumns[this.sortColumn] = "desc";
                                 this.orderDir = 2;
-                                $(this).html("&#9650;");
+                                $(this).html(settings.lang.sort_desc);
                             }
                             else {
                                 table.sortColumns[this.sortColumn] = "none";
                                 this.orderDir = 0;
-                                $(this).html("&#8597;");
+                                $(this).html(settings.lang.sort_none);
                             }
                             table.search(false);
                         });
@@ -171,6 +205,10 @@
                     }
 
                     tr.append(td);
+
+                    if (columnDef.afterCreated) {
+                        columnDef.afterCreated(item, td);
+                    }
                 }
                 body.append(tr);
             }
@@ -298,10 +336,10 @@
                     footer.find("tr td").append(table.divPagging);
                 }
 
-                var first = $("<a class='gfyFirst' href='javascript:void(0);'>&lt;&lt;</a>");
-                var last = $("<a class='gfyLast' href='javascript:void(0);'>&gt;&gt;</a>");
-                var previous = $("<a class='gfyPrevious' href='javascript:void(0);'>&lt;</a>");
-                var next = $("<a class='gfyNext' href='javascript:void(0);'>&gt;</a>");
+                var first = $("<a class='gfyFirst' href='javascript:void(0);'>" + settings.lang.page_first + "</a>");
+                var last = $("<a class='gfyLast' href='javascript:void(0);'>" + settings.lang.page_last + "</a>");
+                var previous = $("<a class='gfyPrevious' href='javascript:void(0);'>" + settings.lang.page_previous + "</a>");
+                var next = $("<a class='gfyNext' href='javascript:void(0);'>" + settings.lang.page_next + "</a>");
                 var ulPages = $("<ul class='gfyPages'></ul>");
                 table.divPagging.append(first);
                 table.divPagging.append(previous);
@@ -419,6 +457,10 @@
 
                 table.paginate();
                 footer.show();
+
+                window.setTimeout(function () {
+                    table.divPagging.css("margin-left", -(table.divPagging.width() / 2));
+                }, 100);
             };
 
             /* Busca novos dados */

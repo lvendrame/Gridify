@@ -1,6 +1,6 @@
 ﻿/*
     Gridify - 2012
-    Create by: Raphael Fenelon Bambi de Souza
+    Created by: Raphael Fenelon Bambi de Souza
 */
 table.tblGdy{
 
@@ -130,6 +130,7 @@ tfoot tr td
     background-color:#efefef;
     padding:7px 4px 7px 4px;
     margin-right:6px;
+    width:230px !important;
       
     }
 .gdySumary span
