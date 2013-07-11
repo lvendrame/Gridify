@@ -1,8 +1,8 @@
 ﻿/*
-    Gridify - 2012
-    Created by: Luís Fernando Vendrame
+Gridify - 2012
+Created by: Luís Fernando Vendrame
 */
-(function ($) {
+; (function ($) {
     $.fn.Gridify = function (options, columns, lang) {
 
         var defaults = {
@@ -12,7 +12,11 @@
             templateRow: null,
             autoSort: true,
             pageSizeOptions: [5, 10, 15, 25, 50],
-            onSelectRow: function (rowIndex, row, redrawRow) { }
+            onSelectRow: function (rowIndex, row, redrawRow) { },
+            drawFooter: true,
+            drawSelectPageSize: true,
+            drawPages: true,
+            drawSumary: true
         };
 
         var def_lang = {
@@ -48,7 +52,7 @@
         //                showDetailRow: function(detail, row, closeDetail){ detail.append("<span>Detalhes</span>")},
         //                style: {backgroundColor:"#fff", heigth: "35px"},
         //                afterCreated: function(item, cell){},
-        //                class: ""
+        //                className: ""
         //            },
         //            "header 2"{
         //                rowTemplate: "<a href='pagina.aspx?codigo=${codigo}'>Editar</a>",
@@ -59,7 +63,7 @@
         //                showDetailRow: function(detail, row, closeDetail){ detail.append("<span>Detalhes</span>")},
         //                style: {backgroundColor:"#fff", heigth: "35px"},
         //                afterCreated: function(item, cell){},
-        //                class: ""
+        //                className: ""
         //            }
         //        }
 
@@ -75,17 +79,17 @@
                 for (var headerName in colsDef) {
                     var columnDef = colsDef[headerName];
 
-                    if (!columnDef.formatFunction)
-                        columnDef.formatFunction = function (item, data, dataName) { return data ? data.toString() : ""; };
+                    if (typeof columnDef.formatFunction == "undefined")
+                        columnDef.formatFunction = function (item, data, dataName) { return typeof data != "undefined" && data != null ? data.toString() : ""; };
 
                     var th = $("<th></th>");
                     tr.append(th);
 
-                    if ((settings.autoSort && columnDef.dataColumn) || columnDef.sortColumn) {
+                    if ((settings.autoSort && typeof columnDef.dataColumn != "undefined") || typeof columnDef.sortColumn != "undefined") {
 
                         var sortSymbol = settings.lang.sort_none;
                         var _orderDir = 0;
-                        if (columnDef.initialSort) {
+                        if (typeof columnDef.initialSort != "undefined") {
                             if (columnDef.initialSort == "asc") {
                                 sortSymbol = settings.lang.sort_asc;
                                 _orderDir = 1;
@@ -100,12 +104,12 @@
                         var lnkS = sorter.get(0);
                         th.append(sorter);
 
-                        if (columnDef.sortColumn)
+                        if (typeof columnDef.sortColumn != "undefined")
                             lnkS.sortColumn = columnDef.sortColumn;
                         else
                             lnkS.sortColumn = columnDef.dataColumn;
 
-                        if (columnDef.initialSort) {
+                        if (typeof columnDef.initialSort != "undefined") {
                             table.sortColumns[lnkS.sortColumn] = columnDef.initialSort;
                             lnkS.orderDir = _orderDir;
                         }
@@ -132,11 +136,11 @@
 
                     th.append(document.createTextNode(headerName));
 
-                    if (columnDef.headerStyle) {
+                    if (typeof columnDef.headerStyle != "undefined") {
                         th.css(columnDef.headerStyle);
                     }
 
-                    if (columnDef.headerClass) {
+                    if (typeof columnDef.headerClass != "undefined") {
                         th.addClass(columnDef.headerClass);
                     }
 
@@ -149,11 +153,12 @@
                 var item = list[idxl];
 
                 tr = $("<tr></tr>");
+                tr.get(0).dataRow = item;
                 for (var headerName in colsDef) {
                     var columnDef = colsDef[headerName];
                     var td = $("<td></td>");
 
-                    if (columnDef.rowTemplate) {
+                    if (typeof columnDef.rowTemplate != "undefined") {
                         var template = columnDef.rowTemplate;
                         var data = template.match(findData);
 
@@ -165,7 +170,7 @@
                         }
                         td.append($(template));
                     }
-                    else if (columnDef.dataColumn) {
+                    else if (typeof columnDef.dataColumn != "undefined") {
                         var dataValue = null;
                         try {
                             dataValue = columnDef.formatFunction(item, item[columnDef.dataColumn], columnDef.dataColumn)
@@ -180,7 +185,7 @@
                         td.append(dataValue);
                     }
 
-                    if (columnDef.showDetailRow) {
+                    if (typeof columnDef.showDetailRow != "undefined") {
                         td.click(function () {
                             var self = this;
                             if (!self.isShowDetail) {
@@ -196,17 +201,16 @@
                         });
                     }
 
-                    if (columnDef.style) {
+                    if (typeof columnDef.style != "undefined") {
                         td.css(columnDef.style);
                     }
 
-                    if (columnDef.class) {
-                        td.addClass(columnDef.class);
-                    }
-
+                        if (typeof columnDef.className != "undefined") 
+                            td.addClass(columnDef.className);
+                    
                     tr.append(td);
 
-                    if (columnDef.afterCreated) {
+                    if (typeof columnDef.afterCreated != "undefined") {
                         columnDef.afterCreated(item, td);
                     }
                 }
@@ -292,91 +296,190 @@
 
             /*Criação do paginador*/
             table.paginate = function () {
+                if (!settings.drawFooter) return;
 
                 footer.html("<tr><td colspan='" + table.columnsCount + "'></td></tr>");
 
-                /*Criação do seletor de tamanho de página*/
-                table.dropdownSize = $(document.createElement("select"));
-                table.dropdownSize.change(function () {
-                    table.pageSize = $(this).val();
-                    table.init();
-                    table.paginate();
-                    if (table.search) {
-                        table.search(false);
-                    }
-                });
-
-                for (var idxOpt in settings.pageSizeOptions) {
-                    var sizeOpt = settings.pageSizeOptions[idxOpt];
-                    table.dropdownSize.append($('<option></option>').val(sizeOpt).html(sizeOpt));
-
-                    if (sizeOpt == table.pageSize) {
-                        table.dropdownSize.val(sizeOpt);
-                    }
-                }
-
-                //DropDownSize - Add Begin
-                var _divTmp = $("<div class='gfy-Tmp' style='float:left'></div>");
-                var msgDdl = $("<span>" + settings.lang.itensPerPageMessage + "</span>");
-                _divTmp.append(msgDdl).append(table.dropdownSize);
-                footer.find("tr td").append(_divTmp);
-                //DropDownSize - End
-
-                var qtt = parseInt(table.totalRows / table.pageSize);
-                if (qtt < (table.totalRows / table.pageSize))
-                    qtt++;
-
-                table.divPagging = footer.find(".gfy-pg");
-
-                if (table.divPagging.length != 0) {
-                    table.divPagging.html("");
-                }
-                else {
-                    table.divPagging = $("<div class='gfy-pg' style='float:left'></div>");
-                    footer.find("tr td").append(table.divPagging);
-                }
-
-                var first = $("<a class='gfyFirst' href='javascript:void(0);'>" + settings.lang.page_first + "</a>");
-                var last = $("<a class='gfyLast' href='javascript:void(0);'>" + settings.lang.page_last + "</a>");
-                var previous = $("<a class='gfyPrevious' href='javascript:void(0);'>" + settings.lang.page_previous + "</a>");
-                var next = $("<a class='gfyNext' href='javascript:void(0);'>" + settings.lang.page_next + "</a>");
-                var ulPages = $("<ul class='gfyPages'></ul>");
-                table.divPagging.append(first);
-                table.divPagging.append(previous);
-                table.divPagging.append(ulPages);
-                table.divPagging.append(next);
-                table.divPagging.append(last);
-
-                first.click(function () {
-                    table.selectPage(1);
-                });
-                previous.click(function () {
-                    if (table.page > 1)
-                        table.selectPage(table.page - 1);
-                });
-                for (var i = 1; i <= qtt; i++) {
-                    var li = $("<li id='lpg" + i + "'>" + i + "</li>");
-                    li.click(function () {
-                        table.selectPage(parseInt($(this).html()));
+                if (settings.drawSelectPageSize) {
+                    /*Criação do seletor de tamanho de página*/
+                    table.dropdownSize = $(document.createElement("select"));
+                    table.dropdownSize.change(function () {
+                        table.pageSize = $(this).val();
+                        table.init();
+                        table.paginate();
+                        if (table.search) {
+                            table.search(false);
+                        }
                     });
-                    ulPages.append(li);
+
+                    for (var idxOpt in settings.pageSizeOptions) {
+                        var sizeOpt = settings.pageSizeOptions[idxOpt];
+                        table.dropdownSize.append($('<option></option>').val(sizeOpt).html(sizeOpt));
+
+                        if (sizeOpt == table.pageSize) {
+                            table.dropdownSize.val(sizeOpt);
+                        }
+                    }
+
+                    //Begin DropDownSize Add 
+                    var _divTmp = $("<div class='gfy-Tmp' style='float:left'></div>");
+                    var msgDdl = $("<span>" + settings.lang.itensPerPageMessage + "</span>");
+                    _divTmp.append(msgDdl).append(table.dropdownSize);
+                    footer.find("tr td").append(_divTmp);
+                    //End DropDownSize
                 }
-                next.click(function () {
-                    if (table.page < qtt)
-                        table.selectPage(table.page + 1);
-                });
-                last.click(function () {
-                    table.selectPage(qtt);
-                });
 
-                ulPages.find("#lpg" + table.page).toggleClass("selectedPg");
+                if (settings.drawPages) {
+                    var qtt = parseInt(table.totalRows / table.pageSize);
+                    if (qtt < (table.totalRows / table.pageSize))
+                        qtt++;
 
-                table.divPagging.css("margin-left", -(table.divPagging.width() / 2));
+                    table.divPagging = footer.find(".gfy-pg");
+
+                    if (table.divPagging.length != 0) {
+                        table.divPagging.html("");
+                    }
+                    else {
+                        table.divPagging = $("<div class='gfy-pg' style='float:left'></div>");
+                        footer.find("tr td").append(table.divPagging);
+                    }
+
+                    var divFirst = $("<div class='gfyDivFirst'></div>");
+                    var divUl = $("<div class='gfyRollover'></div>");
+                    var divLast = $("<div class='gfyDivLast'></div>");
+
+                    var first = $("<a class='gfyFirst' href='javascript:void(0);'>" + settings.lang.page_first + "</a>");
+                    var previous = $("<a class='gfyPrevious' href='javascript:void(0);'>" + settings.lang.page_previous + "</a>");
+                    divFirst.append(first);
+                    divFirst.append(previous);
+
+                    var last = $("<a class='gfyLast' href='javascript:void(0);'>" + settings.lang.page_last + "</a>");
+                    var next = $("<a class='gfyNext' href='javascript:void(0);'>" + settings.lang.page_next + "</a>");
+                    divLast.append(next);
+                    divLast.append(last);
+
+                    var ulPages = $("<ul class='gfyPages'></ul>");
+                    divUl.append(ulPages);
+
+                    table.divPagging.append(divFirst);
+                    table.divPagging.append(divUl);
+                    table.divPagging.append(divLast);
+
+                    first.click(function () {
+                        table.selectPage(1);
+                    });
+                    previous.click(function () {
+                        if (table.page > 1)
+                            table.selectPage(table.page - 1);
+                    });
+
+                    previous.hover(
+					function () {
+					    previous_scroll_interval = setInterval(
+							function () {
+							    var left = divUl.scrollLeft() - 2;
+							    divUl.scrollLeft(left);
+							},
+							20);
+					},
+					function () {
+					    clearInterval(previous_scroll_interval);
+					}
+				);
+
+                    next.hover(
+					function () {
+					    next_scroll_interval = setInterval(
+							function () {
+							    var left = divUl.scrollLeft() + 2;
+							    divUl.scrollLeft(left);
+							},
+							20);
+					},
+					function () {
+					    clearInterval(next_scroll_interval);
+					}
+				);
+
+                    first.hover(
+					function () {
+					    previous_scroll_interval = setInterval(
+							function () {
+							    var left = divUl.scrollLeft() - 10;
+							    divUl.scrollLeft(left);
+							},
+							20);
+					},
+					function () {
+					    clearInterval(previous_scroll_interval);
+					}
+				);
+
+                    last.hover(
+					function () {
+					    next_scroll_interval = setInterval(
+							function () {
+							    var left = divUl.scrollLeft() + 10;
+							    divUl.scrollLeft(left);
+							},
+							20);
+					},
+					function () {
+					    clearInterval(next_scroll_interval);
+					}
+				);
+
+                    for (var i = 1; i <= qtt; i++) {
+                        var li = $("<li id='lpg" + i + "'>" + i + "</li>");
+                        li.click(function () {
+                            table.selectPage(parseInt($(this).html()));
+                        });
+                        ulPages.append(li);
+                    }
+
+                    /*Begin - Start calc ul pages width */
+                    var lenghtPages = 0;
+                    var qttItems = qtt;
+                    var itSize = 19;
+                    var itDec = 9;
+                    while (qttItems > 0) {
+                        if (qttItems > itDec) {
+                            lenghtPages += (itDec * itSize);
+                        }
+                        else {
+                            lenghtPages += (qttItems * itSize);
+                        }
+
+                        qttItems -= itDec;
+                        itDec *= 10;
+                        itSize += 7;
+                    }
+
+                    ulPages.css('width', lenghtPages < 256 ? '256px' : lenghtPages + 'px');
+                    /*End - Start calc ul pages width */
+
+                    var scrollTo = $("#lpg" + table.page).offset().left - divUl.offset().left;
+                    divUl.scrollLeft(scrollTo - 80);
+
+                    next.click(function () {
+                        if (table.page < qtt)
+                            table.selectPage(table.page + 1);
+                    });
+                    last.click(function () {
+                        table.selectPage(qtt);
+                    });
+
+                    ulPages.find("#lpg" + table.page).toggleClass("selectedPg");
+
+                    table.divPagging.css("margin-left", -(table.divPagging.width() / 2));
+                }
 
                 table.createSumary();
             };
 
             table.createSumary = function () {
+                if (!settings.drawSumary) return;
+
                 var fr = footer.find("tr td");
 
                 var divNumbers = fr.find(".gdySumary")
@@ -390,8 +493,8 @@
                 var total = table.toRow < table.totalRows ? table.toRow : table.totalRows;
 
                 var sumary = settings.lang.sumary.replace(/({fromRow})/gi, table.fromRow)
-                    .replace(/({toRow})/gi, total)
-                    .replace(/({totalRows})/gi, table.totalRows);
+					.replace(/({toRow})/gi, total)
+					.replace(/({totalRows})/gi, table.totalRows);
                 var span = $("<span></span>");
                 span.append(document.createTextNode(sumary));
                 divNumbers.append(span);
@@ -447,20 +550,22 @@
                 /* Seleção de Row*/
                 body.find("tr").click(function () {
                     var row = $(this);
+                    var item = this.dataRow;
                     table.selectedRow = table.find("tr").index(row);
                     row.rebinder = function (result) {
                         row.html($(settings.templateRow).tmpl(lista).find("td"));
                     };
-
-                    settings.onSelectRow(table.selectedRow, row, row.rebinder);
+                    settings.onSelectRow(table.selectedRow, row, row.rebinder, item);
                 });
 
                 table.paginate();
                 footer.show();
 
-                window.setTimeout(function () {
-                    table.divPagging.css("margin-left", -(table.divPagging.width() / 2));
-                }, 100);
+                if (typeof table.divPagging != 'undefined') {
+                    window.setTimeout(function () {
+                        table.divPagging.css("margin-left", -(table.divPagging.width() / 2));
+                    }, 100);
+                }
             };
 
             /* Busca novos dados */
