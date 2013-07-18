@@ -2,12 +2,14 @@
 Gridify - 2012
 Created by: Luís Fernando Vendrame
 */
-; (function ($) {
-    $.fn.Gridify = function (options, columns, lang) {
+'use strict';
+; (function ($, window, document, undefined) {
 
-        var defaults = {
+    var pluginName = 'gridify',
+        defaults = {
             search: function (page, pageSize, sortExpression, binder) { },
             getTotalRows: function (setTotalRows) { },
+            initialPage: 1,
             initialPageSize: 15,
             templateRow: null,
             autoSort: true,
@@ -17,9 +19,8 @@ Created by: Luís Fernando Vendrame
             drawSelectPageSize: true,
             drawPages: true,
             drawSumary: true
-        };
-
-        var def_lang = {
+        },
+        def_lang = {
             sumary: "Exibindo de {fromRow} até {toRow} de um total de {totalRows}",
             itensPerPageMessage: "Itens exibidos por página: ",
             emptyDataMessage: "Nenhum registro foi encontrado.",
@@ -30,15 +31,8 @@ Created by: Luís Fernando Vendrame
             sort_none: "&#8597;",
             sort_asc: "&#9660;",
             sort_desc: "&#9650;"
-        };
-
-        //(^\${)(\w*)(})
-
-        var settings = $.extend({}, defaults, options);
-        var language = $.extend({}, def_lang, lang);
-
-        settings.lang = language;
-
+        },
+        self = null;
 
         //        columns{
         //            "header"{
@@ -67,520 +61,645 @@ Created by: Luís Fernando Vendrame
         //            }
         //        }
 
-        function processColumns(list, colsDef, table, header, body) {
-            var findData = /(\${)(\w*)(})/gi;
 
-            //create header
-            if (!header.isInitialized) {
-                header.isInitialized = true;
-                header.html("");
-                var tr = $("<tr></tr>");
-                table.columnsCount = 0;
-                for (var headerName in colsDef) {
-                    var columnDef = colsDef[headerName];
 
-                    if (typeof columnDef.formatFunction == "undefined")
-                        columnDef.formatFunction = function (item, data, dataName) { return typeof data != "undefined" && data != null ? data.toString() : ""; };
+    function Gridify(element, options, columns, language) {
+        this.element = element;
+        this.options = $.extend({}, defaults, options);
+        this.options.language = $.extend({}, def_lang, language);
+        this.columns = columns;
 
-                    var th = $("<th></th>");
-                    tr.append(th);
+        this._defaults = defaults;
+        this._name = pluginName;
+        self = this;
 
-                    if ((settings.autoSort && typeof columnDef.dataColumn != "undefined") || typeof columnDef.sortColumn != "undefined") {
+        this.init();
+    }
 
-                        var sortSymbol = settings.lang.sort_none;
-                        var _orderDir = 0;
-                        if (typeof columnDef.initialSort != "undefined") {
-                            if (columnDef.initialSort == "asc") {
-                                sortSymbol = settings.lang.sort_asc;
-                                _orderDir = 1;
-                            }
-                            else if (columnDef.initialSort == "desc") {
-                                sortSymbol = settings.lang.sort_desc;
-                                _orderDir = 2;
-                            }
-                        }
+    Gridify.prototype = {
 
-                        var sorter = $("<a href='javascript:void(0);'>" + sortSymbol + "</a>");
-                        var lnkS = sorter.get(0);
-                        th.append(sorter);
+        init: function(){
+            this.pageSize = this.options.initialPageSize;
+            this.totalRows = 0;
+            this.resetPageValues();
+            this.createBaseElements();
+        },
 
-                        if (typeof columnDef.sortColumn != "undefined")
-                            lnkS.sortColumn = columnDef.sortColumn;
-                        else
-                            lnkS.sortColumn = columnDef.dataColumn;
+        resetPageValues: function(){
+            this.page = this.options.initialPage;
+            this.fromRow = 1;
+            this.toRow = this.pageSize;
+            this.selectedRow = -1;
+            this.sortColumns = {};            
+        },
 
-                        if (typeof columnDef.initialSort != "undefined") {
-                            table.sortColumns[lnkS.sortColumn] = columnDef.initialSort;
-                            lnkS.orderDir = _orderDir;
-                        }
+        createBaseElements: function () {
+            var table = $(this.element);
 
-                        sorter.click(function () {
-                            if (!this.orderDir || this.orderDir == 0) {
-                                table.sortColumns[this.sortColumn] = "asc";
-                                this.orderDir = 1;
-                                $(this).html(settings.lang.sort_asc);
-                            }
-                            else if (this.orderDir == 1) {
-                                table.sortColumns[this.sortColumn] = "desc";
-                                this.orderDir = 2;
-                                $(this).html(settings.lang.sort_desc);
-                            }
-                            else {
-                                table.sortColumns[this.sortColumn] = "none";
-                                this.orderDir = 0;
-                                $(this).html(settings.lang.sort_none);
-                            }
-                            table.search(false);
-                        });
-                    }
-
-                    th.append(document.createTextNode(headerName));
-
-                    if (typeof columnDef.headerStyle != "undefined") {
-                        th.css(columnDef.headerStyle);
-                    }
-
-                    if (typeof columnDef.headerClass != "undefined") {
-                        th.addClass(columnDef.headerClass);
-                    }
-
-                    table.columnsCount++;
-                }
-                header.append(tr);
-            }
-
-            for (var idxl in list) {
-                var item = list[idxl];
-
-                tr = $("<tr></tr>");
-                tr.get(0).dataRow = item;
-                for (var headerName in colsDef) {
-                    var columnDef = colsDef[headerName];
-                    var td = $("<td></td>");
-
-                    if (typeof columnDef.rowTemplate != "undefined") {
-                        var template = columnDef.rowTemplate;
-                        var data = template.match(findData);
-
-                        for (var idd = 0; idd < data.length; idd++) {
-                            var dataName = data[idd].replace(findData, "$2");
-                            var dataValue = columnDef.formatFunction(item, item[dataName], dataName);
-                            var rAux = new RegExp("(\\${)(" + dataName + ")(})", "gi");
-                            template = template.replace(rAux, dataValue);
-                        }
-                        td.append($(template));
-                    }
-                    else if (typeof columnDef.dataColumn != "undefined") {
-                        var dataValue = null;
-                        try {
-                            dataValue = columnDef.formatFunction(item, item[columnDef.dataColumn], columnDef.dataColumn)
-                        } catch (e) {
-                            if (item[columnDef.dataColumn] != undefined) {
-                                dataValue = item[columnDef.dataColumn].toString();
-                            }
-                            else {
-                                dataValue = "";
-                            }
-                        }
-                        td.append(dataValue);
-                    }
-
-                    if (typeof columnDef.showDetailRow != "undefined") {
-                        td.click(function () {
-                            var self = this;
-                            if (!self.isShowDetail) {
-                                self.isShowDetail = true;
-                                var row = $(this).parent();
-                                var detail = $("<tr><td colspan=\"" + table.columnsCount + "\"></td></tr>");
-                                row.after(detail);
-                                columnDef.showDetailRow(detail.find('td'), row, function () {
-                                    detail.remove();
-                                    self.isShowDetail = false;
-                                });
-                            }
-                        });
-                    }
-
-                    if (typeof columnDef.style != "undefined") {
-                        td.css(columnDef.style);
-                    }
-
-                        if (typeof columnDef.className != "undefined") 
-                            td.addClass(columnDef.className);
-                    
-                    tr.append(td);
-
-                    if (typeof columnDef.afterCreated != "undefined") {
-                        columnDef.afterCreated(item, td);
-                    }
-                }
-                body.append(tr);
-            }
-
-        }
-
-        return this.each(function () {
-            var table = $(this);
             var header = table.find("thead");
             if (header.length == 0) {
-                header = $("<thead></thead>");
+                header = $(document.createElement("thead"));
                 table.append(header);
             }
 
             var body = table.find("tbody");
             if (body.length == 0) {
-                body = $("<tbody></tbody>");
+                body = $(document.createElement("tbody"));
                 table.append(body);
             }
 
             var footer = table.find("tfoot");
             if (footer.length == 0) {
-                footer = $("<tfoot></tfoot>");
+                footer = $(document.createElement("tfoot"));
                 table.append(footer);
+            } else {
+                footer.find("tr td").html("");
             }
 
-            /*Inicialização de valores*/
             table.addClass('tblGdy');
-            table.pageSize = settings.initialPageSize;
-            table.totalRows = 0;
-            table.sortColumns = {};
-            footer.find("tr td").html("");
+            this.search(true);
+        },
 
-            table.init = function () {
-                table.page = 1;
-                table.fromRow = 1;
-                table.toRow = table.pageSize;
-                table.selectedRow = -1;
-            };
+        //create header
+        createHeader: function(header){
+            if (!header.isInitialized) {
+                header.isInitialized = true;
+                header.html("");
+                var tr = $("<tr></tr>");
+                this.columnsCount = 0;
 
-            table.init();
-
-            //            var _divTmp = $("<div class='gfy-Tmp' style='float:left'></div>");
-            //            var msgDdl = $("<span>" + settings.lang.itensPerPageMessage + "</span>");
-            //            _divTmp.append(msgDdl).append(table.dropdownSize);
-            //            footer.find("tr td").append(_divTmp);
-
-            /*Setar o tatal de linhas*/
-            table.setTotalRows = function (totalRows) {
-                table.totalRows = totalRows;
-
-                if (table.totalRows == 0) {
-                    table.showEmptyDataMessage();
+                for (var headerName in this.columns) {
+                    this.createHeaderColumn(tr, this.columns[headerName], headerName);
+                    this.columnsCount++;
                 }
-                else {
-                    settings.search(table.page - 1, table.pageSize, table.getSortExpression(), table.binder);
-                }
-            };
+                header.append(tr);
+            }
+        },
 
-            table.getSortExpression = function () {
-                var sortExpression = "";
-                var addComma = false;
+        createHeaderColumn: function(tr, column, headerName){
+            
+            var th = $("<th></th>");
+            tr.append(th);            
 
-                for (var sortColumn in table.sortColumns) {
+            if (typeof column.formatFunction == 'undefined')
+                column.formatFunction = function (item, data, dataName) {
+                    return typeof data != "undefined" && data != null ? data.toString() : ""; 
+                };
 
-                    var direction = table.sortColumns[sortColumn];
 
-                    if (direction != 'none') {
-                        if (addComma) {
-                            sortExpression += ",";
-                        }
-                        else {
-                            addComma = true;
-                        }
-                        sortExpression += (sortColumn + " " + direction);
+            if ((this.options.autoSort && typeof column.dataColumn != "undefined") || typeof column.sortColumn != "undefined") {
+
+                var sortSymbol = this.options.language.sort_none,
+                    _orderDir = 0;
+
+                if (typeof column.initialSort != "undefined") {
+                    if (column.initialSort == "asc") {
+                        sortSymbol = this.options.language.sort_asc;
+                        _orderDir = 1;
+                    }
+                    else if (column.initialSort == "desc") {
+                        sortSymbol = this.options.language.sort_desc;
+                        _orderDir = 2;
                     }
                 }
 
-                return sortExpression;
-            };
+                var lnkS = document.createElement('a');
+                lnkS.href = 'javascript:void(0);';                
+                var sorter = $(lnkS);
+                sorter.html(sortSymbol);
+                
+                th.append(sorter);
 
-            /*Criação do paginador*/
-            table.paginate = function () {
-                if (!settings.drawFooter) return;
+                if (typeof column.sortColumn != "undefined")
+                    lnkS.sortColumn = column.sortColumn;
+                else
+                    lnkS.sortColumn = column.dataColumn;
 
-                footer.html("<tr><td colspan='" + table.columnsCount + "'></td></tr>");
-
-                if (settings.drawSelectPageSize) {
-                    /*Criação do seletor de tamanho de página*/
-                    table.dropdownSize = $(document.createElement("select"));
-                    table.dropdownSize.change(function () {
-                        table.pageSize = $(this).val();
-                        table.init();
-                        table.paginate();
-                        if (table.search) {
-                            table.search(false);
-                        }
-                    });
-
-                    for (var idxOpt in settings.pageSizeOptions) {
-                        var sizeOpt = settings.pageSizeOptions[idxOpt];
-                        table.dropdownSize.append($('<option></option>').val(sizeOpt).html(sizeOpt));
-
-                        if (sizeOpt == table.pageSize) {
-                            table.dropdownSize.val(sizeOpt);
-                        }
-                    }
-
-                    //Begin DropDownSize Add 
-                    var _divTmp = $("<div class='gfy-Tmp' style='float:left'></div>");
-                    var msgDdl = $("<span>" + settings.lang.itensPerPageMessage + "</span>");
-                    _divTmp.append(msgDdl).append(table.dropdownSize);
-                    footer.find("tr td").append(_divTmp);
-                    //End DropDownSize
+                if (typeof column.initialSort != "undefined") {
+                    this.sortColumns[lnkS.sortColumn] = column.initialSort;
+                    lnkS.orderDir = _orderDir;
                 }
 
-                if (settings.drawPages) {
-                    var qtt = parseInt(table.totalRows / table.pageSize);
-                    if (qtt < (table.totalRows / table.pageSize))
-                        qtt++;
-
-                    table.divPagging = footer.find(".gfy-pg");
-
-                    if (table.divPagging.length != 0) {
-                        table.divPagging.html("");
+                var self = this;
+                sorter.click(function () {
+                    if (!this.orderDir || this.orderDir == 0) {
+                        self.sortColumns[this.sortColumn] = "asc";
+                        this.orderDir = 1;
+                        sorter.html(self.options.language.sort_asc);
+                    }
+                    else if (this.orderDir == 1) {
+                        self.sortColumns[this.sortColumn] = "desc";
+                        this.orderDir = 2;
+                        sorter.html(self.options.language.sort_desc);
                     }
                     else {
-                        table.divPagging = $("<div class='gfy-pg' style='float:left'></div>");
-                        footer.find("tr td").append(table.divPagging);
+                        self.sortColumns[this.sortColumn] = "none";
+                        this.orderDir = 0;
+                        sorter.html(self.options.language.sort_none);
                     }
+                    self.search(false);
+                });
+            }
 
-                    var divFirst = $("<div class='gfyDivFirst'></div>");
-                    var divUl = $("<div class='gfyRollover'></div>");
-                    var divLast = $("<div class='gfyDivLast'></div>");
+            th.append(document.createTextNode(headerName));
 
-                    var first = $("<a class='gfyFirst' href='javascript:void(0);'>" + settings.lang.page_first + "</a>");
-                    var previous = $("<a class='gfyPrevious' href='javascript:void(0);'>" + settings.lang.page_previous + "</a>");
-                    divFirst.append(first);
-                    divFirst.append(previous);
+            if (typeof column.headerStyle != "undefined") {
+                th.css(column.headerStyle);
+            }
 
-                    var last = $("<a class='gfyLast' href='javascript:void(0);'>" + settings.lang.page_last + "</a>");
-                    var next = $("<a class='gfyNext' href='javascript:void(0);'>" + settings.lang.page_next + "</a>");
-                    divLast.append(next);
-                    divLast.append(last);
+            if (typeof column.headerClass != "undefined") {
+                th.addClass(column.headerClass);
+            }
+        },
 
-                    var ulPages = $("<ul class='gfyPages'></ul>");
-                    divUl.append(ulPages);
+        createRow: function(body, item){
+            if (typeof item != 'function') {
 
-                    table.divPagging.append(divFirst);
-                    table.divPagging.append(divUl);
-                    table.divPagging.append(divLast);
+                var trEl = document.createElement('tr');
+                trEl.dataRow = item;
+                
+                var tr = $(trEl);
+                body.append(tr);
 
-                    first.click(function () {
-                        table.selectPage(1);
-                    });
-                    previous.click(function () {
-                        if (table.page > 1)
-                            table.selectPage(table.page - 1);
-                    });
+                for (var headerName in this.columns) {
+                    this.createColumn(tr, item, this.columns[headerName], headerName);
+                }
+            }
+        },
 
-                    previous.hover(
-					function () {
-					    previous_scroll_interval = setInterval(
-							function () {
-							    var left = divUl.scrollLeft() - 2;
-							    divUl.scrollLeft(left);
-							},
-							20);
-					},
-					function () {
-					    clearInterval(previous_scroll_interval);
-					}
-				);
+        createColumn: function(tr, item, column, headerName){
+            var td = $(document.createElement('td')),
+                findData = /(\${)(\w*)(})/gi;
 
-                    next.hover(
-					function () {
-					    next_scroll_interval = setInterval(
-							function () {
-							    var left = divUl.scrollLeft() + 2;
-							    divUl.scrollLeft(left);
-							},
-							20);
-					},
-					function () {
-					    clearInterval(next_scroll_interval);
-					}
-				);
+            tr.append(td);
 
-                    first.hover(
-					function () {
-					    previous_scroll_interval = setInterval(
-							function () {
-							    var left = divUl.scrollLeft() - 10;
-							    divUl.scrollLeft(left);
-							},
-							20);
-					},
-					function () {
-					    clearInterval(previous_scroll_interval);
-					}
-				);
+            if (typeof column.rowTemplate != "undefined") {
+                var template = column.rowTemplate;
+                var data = template.match(findData);
 
-                    last.hover(
-					function () {
-					    next_scroll_interval = setInterval(
-							function () {
-							    var left = divUl.scrollLeft() + 10;
-							    divUl.scrollLeft(left);
-							},
-							20);
-					},
-					function () {
-					    clearInterval(next_scroll_interval);
-					}
-				);
+                for (var idd = 0; idd < data.length; idd++) {
+                    var dataName = data[idd].replace(findData, "$2");
+                    var dataValue = column.formatFunction(item, item[dataName], dataName);
+                    var rAux = new RegExp("(\\${)(" + dataName + ")(})", "gi");
+                    template = template.replace(rAux, dataValue);
+                }
+                td.append($(template));
+            }
+            else if (typeof column.dataColumn != "undefined") {
+                var dataValue = null;
+                try {
+                    dataValue = column.formatFunction(item, item[column.dataColumn], column.dataColumn);
+                } catch (e) {
+                    if (item[column.dataColumn] != undefined) {
+                        dataValue = item[column.dataColumn].toString();
+                    }
+                    else {
+                        dataValue = "";
+                    }
+                }
+                td.append(dataValue);
+            }
 
-                    for (var i = 1; i <= qtt; i++) {
-                        var li = $("<li id='lpg" + i + "'>" + i + "</li>");
-                        li.click(function () {
-                            table.selectPage(parseInt($(this).html()));
+            if (typeof column.showDetailRow != "undefined") {
+                td.click(function () {
+                    if (!this.isShowDetail) {
+                        this.isShowDetail = true;
+
+                        var dtTr = document.createElement('tr'),
+                            dtTd = document.createElement('td');
+                        dtTr.appendChild(dtTd);
+                        dtTd.colSpan = self.columnsCount;
+
+                        var detail = $(dtTr);
+                        tr.after(detail);                        
+                        column.showDetailRow(dtTd, tr, function () {
+                            detail.remove();
+                            td.isShowDetail = false;
                         });
-                        ulPages.append(li);
                     }
+                });
+            }
 
-                    /*Begin - Start calc ul pages width */
-                    var lenghtPages = 0;
-                    var qttItems = qtt;
-                    var itSize = 19;
-                    var itDec = 9;
-                    while (qttItems > 0) {
-                        if (qttItems > itDec) {
-                            lenghtPages += (itDec * itSize);
-                        }
-                        else {
-                            lenghtPages += (qttItems * itSize);
-                        }
+            if (typeof column.style != "undefined") {
+                td.css(column.style);
+            }
 
-                        qttItems -= itDec;
-                        itDec *= 10;
-                        itSize += 7;
+            if (typeof column.className != "undefined")
+                td.addClass(column.className);
+
+            if (typeof column.afterCreated != "undefined") {
+                column.afterCreated(item, td);
+            }
+        },
+
+        createGrid: function(list, header, body){
+            this.createHeader(header);
+            for (var idxl in list) {
+                var item = list[idxl];
+                this.createRow(body, item);
+            }
+        },
+                
+        /*Setar o total de linhas*/
+        setTotalRows: function (totalRows) {
+            self.totalRows = totalRows;
+
+            if (self.totalRows == 0) {
+                self.showEmptyDataMessage();
+            }
+            else {
+                self.options.search(self.page - 1, self.pageSize, self.getSortExpression(), self.binder);
+            }
+        },
+
+        getSortExpression: function () {
+            var sortExpression = "";
+            var addComma = false;
+
+            for (var sortColumn in this.sortColumns) {
+
+                var direction = this.sortColumns[sortColumn];
+
+                if (direction != 'none') {
+                    if (addComma) {
+                        sortExpression += ",";
                     }
-
-                    ulPages.css('width', lenghtPages < 256 ? '256px' : lenghtPages + 'px');
-                    /*End - Start calc ul pages width */
-
-                    var scrollTo = $("#lpg" + table.page).offset().left - divUl.offset().left;
-                    divUl.scrollLeft(scrollTo - 80);
-
-                    next.click(function () {
-                        if (table.page < qtt)
-                            table.selectPage(table.page + 1);
-                    });
-                    last.click(function () {
-                        table.selectPage(qtt);
-                    });
-
-                    ulPages.find("#lpg" + table.page).toggleClass("selectedPg");
-
-                    table.divPagging.css("margin-left", -(table.divPagging.width() / 2));
+                    else {
+                        addComma = true;
+                    }
+                    sortExpression += (sortColumn + " " + direction);
                 }
+            }
 
-                table.createSumary();
-            };
+            return sortExpression;
+        },
+                
+        /*Criação do paginador*/
+        paginate: function (footer) {
+            if (!this.options.drawFooter) return;
+             
+            var ftTr = document.createElement('tr'),
+                ftTd = document.createElement('td');
+            ftTd.colSpan = this.columnsCount;
+            ftTr.appendChild(ftTd);
 
-            table.createSumary = function () {
-                if (!settings.drawSumary) return;
+            footer.html("").append(ftTr);
 
-                var fr = footer.find("tr td");
+            this.createPaginateSelect(ftTd);
 
-                var divNumbers = fr.find(".gdySumary")
-                if (divNumbers.length == 0) {
-                    divNumbers = $("<div class='gdySumary' style='float:right'></div>");
-                    fr.append(divNumbers);
-                }
-                else {
-                    divNumbers.html("");
-                }
-                var total = table.toRow < table.totalRows ? table.toRow : table.totalRows;
+            this.createPages(ftTd);            
 
-                var sumary = settings.lang.sumary.replace(/({fromRow})/gi, table.fromRow)
-					.replace(/({toRow})/gi, total)
-					.replace(/({totalRows})/gi, table.totalRows);
-                var span = $("<span></span>");
-                span.append(document.createTextNode(sumary));
-                divNumbers.append(span);
-            };
+            this.createSumary(ftTd);
+        },
 
-            /* Seleção de Página */
-            table.selectPage = function (page) {
-                $("#lpg" + table.page).toggleClass("selectedPg");
-                table.page = page;
-                var pgAux = page - 1;
-                table.fromRow = (table.pageSize * pgAux) + 1;
-                table.toRow = (table.pageSize * (pgAux + 1));
-                if (table.toRow > table.totalRows)
-                    table.toRow = table.totalRows;
-
-                table.createSumary();
-
-                $("#lpg" + table.page).toggleClass("selectedPg");
-                if (table.search) {
-                    table.search(false);
-                }
-            };
-
-            table.showEmptyDataMessage = function () {
-                table.html("<tr><td>" + settings.lang.emptyDataMessage + "</td></tr>");
-            };
-
-            /* Alimentação da Estrutura da Página */
-            table.binder = function (result) {
-                var lista;
-                if (typeof (result) == "string")
-                    lista = eval("(" + result + ")");
-                else
-                    lista = result;
-
-                body.html("");
-
-                if (columns !== undefined && typeof (columns) == 'object') {
-                    processColumns(lista, columns, table, header, body);
-                }
-                else {
-                    $(settings.templateRow).tmpl(lista).appendTo(body);
-                }
-
-                /* Definições de cor*/
-                body.find("tr").hover(function () {
-                    $(this).toggleClass("selectRowGdy");
+        createPaginateSelect: function (td) {
+            if (this.options.drawSelectPageSize) {
+                /*Criação do seletor de tamanho de página*/
+                var pgSelect = document.createElement("select");
+                this.dropdownSize = $(pgSelect);
+                this.dropdownSize.change(function () {
+                    self.pageSize = $(this).val();
+                    self.resetPageValues();
+                    self.paginate($(self.element).find('tfoot'));
+                    if (self.search) {
+                        self.search(false);
+                    }
                 });
 
-                body.find("tr:even").addClass('gdyEven');
-                body.find("tr:odd").addClass('gdyOdd');
+                var idxOpt = 0,
+                    len = this.options.pageSizeOptions.length;
 
-                /* Seleção de Row*/
-                body.find("tr").click(function () {
-                    var row = $(this);
-                    var item = this.dataRow;
-                    table.selectedRow = table.find("tr").index(row);
-                    row.rebinder = function (result) {
-                        row.html($(settings.templateRow).tmpl(lista).find("td"));
-                    };
-                    settings.onSelectRow(table.selectedRow, row, row.rebinder, item);
+                for (; idxOpt < len; idxOpt++) {
+                    var sizeOpt = this.options.pageSizeOptions[idxOpt];
+                    if (typeof sizeOpt != 'function') {
+                        var opt = document.createElement('option');
+                        opt.value = sizeOpt;
+                        opt.text = sizeOpt;
+                        pgSelect.appendChild(opt);                        
+
+                        if (sizeOpt == this.pageSize) {
+                            pgSelect.selectedIndex = idxOpt;
+                        }
+                    }
+                }
+
+                //Begin DropDownSize Add 
+                var _divTmp = document.createElement('div'),
+                    msgDdl = document.createElement('span');
+
+                _divTmp.className = 'gfy-Tmp';
+                _divTmp.style.float = 'left';                
+                msgDdl.appendChild(document.createTextNode(this.options.language.itensPerPageMessage));
+
+                _divTmp.appendChild(msgDdl);
+                _divTmp.appendChild(pgSelect);
+
+                td.appendChild(_divTmp);
+                //End DropDownSize
+            }
+        },
+
+        createPages: function (td) {
+            if (this.options.drawPages) {
+
+                this.divPagging = $(td).find(".gfy-pg");
+
+                if (this.divPagging.length != 0) {
+                    this.divPagging.html("");
+                } else {
+                    var divAux = document.createElement('div');
+                    divAux.className = 'gfy-pg';
+                    divAux.style.float = 'left';
+                    this.divPagging = $(divAux);
+                    td.appendChild(divAux);
+                }
+
+                var divFirst = document.createElement('div'),
+                    divUl = document.createElement('div'),
+                    divLast = document.createElement('div'),
+                    first = document.createElement('a'),
+                    previous = document.createElement('a'),
+                    last = document.createElement('a'),
+                    next = document.createElement('a'),
+                    ulPages = document.createElement('ul');
+
+                divFirst.className = 'gfyDivFirst';
+                divUl.className = 'gfyRollover';
+                divLast.className = 'gfyDivLast';
+
+                first.className = 'gfyFirst';
+                first.href = 'javascript:void(0);';                
+                first.innerHTML = this.options.language.page_first;
+
+                previous.className = 'gfyPrevious';
+                previous.href = 'javascript:void(0);';
+                previous.innerHTML = this.options.language.page_previous;
+
+                divFirst.appendChild(first);
+                divFirst.appendChild(previous);
+
+                last.className = 'gfyLast';
+                last.href = 'javascript:void(0);';
+                last.innerHTML = this.options.language.page_last;
+
+                next.className = 'gfyNext';
+                next.href = 'javascript:void(0);';
+                next.innerHTML = this.options.language.page_next;
+
+                divLast.appendChild(next);
+                divLast.appendChild(last);
+
+                ulPages.className = 'gfyPages';
+                divUl.appendChild(ulPages);
+
+                this.divPagging.append(divFirst);
+                this.divPagging.append(divUl);
+                this.divPagging.append(divLast);
+
+                $(first).click(function () {
+                    self.selectPage(1);
                 });
 
-                table.paginate();
-                footer.show();
+                var pg_scroll_interval;
+                $(previous).click(function () {
+                    if (self.page > 1)
+                        self.selectPage(self.page - 1);
+                })
+                .hover(
+                    function () {
+                        pg_scroll_interval = setInterval(function () {
+                                var left = $(divUl).scrollLeft() - 2;
+                                $(divUl).scrollLeft(left);
+                            }, 20);
+                    },
+                    function () {
+                        clearInterval(pg_scroll_interval);
+                    }
+                );
 
-                if (typeof table.divPagging != 'undefined') {
-                    window.setTimeout(function () {
-                        table.divPagging.css("margin-left", -(table.divPagging.width() / 2));
-                    }, 100);
+                $(next).hover(
+                    function () {
+                        pg_scroll_interval = setInterval(function () {
+                                var left = $(divUl).scrollLeft() + 2;
+                                $(divUl).scrollLeft(left);
+                            }, 20);
+                    },
+                    function () {
+                        clearInterval(pg_scroll_interval);
+                    }
+                );
+
+                $(first).hover(
+                    function () {
+                        pg_scroll_interval = setInterval(function () {
+                                var left = $(divUl).scrollLeft() - 10;
+                                $(divUl).scrollLeft(left);
+                            }, 20);
+                    },
+                    function () {
+                        clearInterval(pg_scroll_interval);
+                    }
+                );
+
+                $(last).hover(
+                    function () {
+                        pg_scroll_interval = setInterval(function () {
+                                var left = $(divUl).scrollLeft() + 10;
+                                $(divUl).scrollLeft(left);
+                            }, 20);
+                    },
+                    function () {
+                        clearInterval(pg_scroll_interval);
+                    }
+                );
+
+                var aux = this.totalRows / this.pageSize,
+                    qtt = parseInt(aux),
+                    idxPg = 1;
+
+                if (qtt < aux)
+                    qtt++;
+                for (; idxPg <= qtt; idxPg++) {
+                    var li = document.createElement('li');
+                    li.id = 'lpg' + idxPg;
+                    li.appendChild(document.createTextNode(idxPg));
+                    (function(li, idxPg, self){
+                        $(li).click(function () {
+                            self.selectPage(idxPg);
+                        });
+                    })(li, idxPg, self);                    
+                    ulPages.appendChild(li);
                 }
-            };
 
-            /* Busca novos dados */
-            table.search = function (newSearch) {
-                if (newSearch) {
-                    settings.getTotalRows(table.setTotalRows);
+                $(next).click(function () {
+                    if (self.page < qtt)
+                        self.selectPage(self.page + 1);
+                });
+
+                $(last).click(function () {
+                    self.selectPage(qtt);
+                });
+
+                /*Begin - Start calc ul pages width */
+                var lenghtPages = 0,
+                    qttItems = qtt,
+                    itSize = 19,
+                    itDec = 9;
+
+                while (qttItems > 0) {
+                    if (qttItems > itDec) {
+                        lenghtPages += (itDec * itSize);
+                    }
+                    else {
+                        lenghtPages += (qttItems * itSize);
+                    }
+
+                    qttItems -= itDec;
+                    itDec *= 10;
+                    itSize += 7;
                 }
-                else {
-                    settings.search(table.page - 1, table.pageSize, table.getSortExpression(), table.binder);
+                /*End - Start calc ul pages width */
+
+                $(ulPages).find("#lpg" + this.page).toggleClass("selectedPg");
+
+                ulPages.style.width = lenghtPages < 256 ? '256px' : lenghtPages + 'px';
+
+                this.divPagging.css("margin-left", -(this.divPagging.width() / 2));
+
+                var scrollTo = $(divUl).find("#lpg" + this.page).offset().left - $(divUl).offset().left;
+                $(divUl).scrollLeft(scrollTo - 80);
+            }
+        },
+
+        createSumary: function (td) {
+            if (!this.options.drawSumary) return;            
+
+            var divNumbers = $(td).find(".gdySumary")
+            if (divNumbers.length == 0) {
+                var aux = document.createElement('div');
+                aux.className = 'gdySumary';
+                aux.style.float = 'right';
+                td.appendChild(aux);
+
+                divNumbers = $(aux);
+            }
+            else {
+                divNumbers.html("");
+            }
+            var total = this.toRow < this.totalRows ? this.toRow : this.totalRows;
+
+            var sumary = this.options.language.sumary.replace(/({fromRow})/gi, this.fromRow)
+                .replace(/({toRow})/gi, total)
+                .replace(/({totalRows})/gi, this.totalRows);
+            var span = document.createElement('span');
+            span.appendChild(document.createTextNode(sumary));
+            
+            divNumbers.append(span);
+        },
+
+        /* Seleção de Página */
+        selectPage: function (page) {
+            $("#lpg" + this.page).toggleClass("selectedPg");
+            this.page = page;
+            var pgAux = page - 1;
+            this.fromRow = (this.pageSize * pgAux) + 1;
+            this.toRow = (this.pageSize * (pgAux + 1));
+            if (this.toRow > this.totalRows)
+                this.toRow = this.totalRows;
+
+            var ftTd = $(this.element).find('tfoot tr td');
+            this.createSumary(ftTd);
+
+            var newLiPg = $("#lpg" + this.page),
+                divUl = $(this.element).find('.gfyRollover');
+            
+            newLiPg.toggleClass("selectedPg");
+            
+            divUl.scrollLeft(0);
+            var scrollTo = newLiPg.offset().left - divUl.offset().left;
+            divUl.scrollLeft(scrollTo - 80);
+
+            if (this.search) {
+                this.search(false);
+            }
+        },
+
+        showEmptyDataMessage: function () {
+            $(this.elemant).html("<tr><td>" + this.options.language.emptyDataMessage + "</td></tr>");
+        },
+        
+        /* Alimentação da Estrutura da Página */
+        binder: function (result) {
+            var list;
+            if (typeof (result) == "string"){
+                if(typeof(JSON) != 'undefined'){
+                    list = JSON.parse(result);
+                }else{
+                    list = eval("(" + result + ")");
                 }
-            };
+            } else {
+                list = result;
+            }
+            
+            var jEl = $(self.element),
+                header = jEl.find('thead'),
+                body = jEl.find('tbody'),
+                footer = jEl.find('tfoot');
 
-            table.search(true);
+            body.html("");
 
-            this.table = table;
+            if (self.columns !== undefined && typeof (self.columns) == 'object') {
+                self.createGrid(list, header, body);                
+            }
+            else {
+                $(self.options.language.templateRow).tmpl(list).appendTo(body);
+            }
+
+            /* Definições de cor*/
+            body.find("tr:even").addClass('gdyEven');
+            body.find("tr:odd").addClass('gdyOdd');
+            
+            body.find("tr").hover(function () {
+                $(this).toggleClass("selectRowGdy");
+            })
+            /* Seleção de Row*/
+            .click(function () {
+                var row = $(this);
+                var item = this.dataRow;
+                self.selectedRow = jEl.find("tr").index(row);
+                row.rebinder = function (result) {
+                    row.html($(self.options.templateRow).tmpl(list).find("td"));
+                };
+                self.options.onSelectRow(self.selectedRow, row, row.rebinder, item);
+            });
+
+            self.paginate(footer);
+            footer.show();
+
+            if (typeof self.divPagging != 'undefined') {
+                window.setTimeout(function () {
+                    self.divPagging.css("margin-left", -(self.divPagging.width() / 2));
+                }, 100);
+            }
+        },
+        
+        /* Busca novos dados */
+        search: function (newSearch) {
+            if (newSearch) {
+                this.options.getTotalRows(this.setTotalRows);
+            }
+            else {
+                this.options.search(this.page - 1, this.pageSize, this.getSortExpression(), this.binder);
+            }
+        }
+    };
+
+    $.fn[pluginName] = function (options, columns, language) {
+        return this.each(function () {
+            if (!$.data(this, "plugin_" + pluginName)) {
+                $.data(this, "plugin_" + pluginName, new Gridify(this, options, columns, language));
+            }
         });
     };
-})(jQuery);
+
+})(window.jQuery, window, document);
