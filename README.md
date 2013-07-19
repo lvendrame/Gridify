@@ -2,7 +2,7 @@
 
 a jQuery plugin to add functionality to tables
 
-## Documentation:
+## Documentation
 
 ## Defaults
     * search
