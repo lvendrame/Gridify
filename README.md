@@ -4,7 +4,7 @@ a jQuery plugin to add functionality to tables
 
 ## Documentation:
 
-## Defaults:
+## Defaults
     * search
          default value: function (page, pageSize, sortExpression, binder) { }
          description: Function to get the data of each page.
