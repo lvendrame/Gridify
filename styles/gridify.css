@@ -1,15 +1,10 @@
-﻿/*
-    Gridify - 2012
-    Created by: Raphael Fenelon Bambi de Souza
+/*
+    Gridify - 2013
     Modified by: Luís Fernando Vendrame
 */
 table.tblGdy
 {
-}
-
-.tableResultado
-{
-    border-style: none !important;
+    border-style: none;
 }
 
 table.tblGdy tfoot tr td ul

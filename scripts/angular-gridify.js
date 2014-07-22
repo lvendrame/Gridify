@@ -19,7 +19,7 @@ angular.module('lv.gridify').directive('gridify', function () {
 
 /*
     Html
-        <table class="tableResult" id="tblResult" gridify="gridParams"></table>
+        <table gridify="gridParams"></table>
 
     Script
         $scope.search = function () {
