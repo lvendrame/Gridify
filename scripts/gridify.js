@@ -637,7 +637,7 @@ Created by: Luís Fernando Vendrame
         },
 
         showEmptyDataMessage: function () {
-            $(this.elemant).html("<tr><td>" + this.options.language.emptyDataMessage + "</td></tr>");
+            $(this.element).html("<tr><td>" + this.options.language.emptyDataMessage + "</td></tr>");
         },
         
         /* Alimentação da Estrutura da Página */
