@@ -1,5 +1,5 @@
-﻿/*
-Gridify - 2012
+/*
+Gridify - 2013
 Created by: Luís Fernando Vendrame
 */
 'use strict';
@@ -36,6 +36,8 @@ Created by: Luís Fernando Vendrame
 
         //        columns{
         //            "header"{
+        //                caption: "", //optional
+        //                afterHeaderCreated: function(cell){},
         //                headerStyle: {backgroundColor:"#fff", heigth: "35px"},
         //                headerClass: "",
         //                rowTemplate: "<a href='pagina.aspx?codigo=${codigo}'>Editar</a>",
@@ -100,6 +102,8 @@ Created by: Luís Fernando Vendrame
             if (header.length == 0) {
                 header = $(document.createElement("thead"));
                 table.append(header);
+            } else {
+                header.removeAttr('isInitialized');
             }
 
             var body = table.find("tbody");
@@ -122,8 +126,8 @@ Created by: Luís Fernando Vendrame
 
         //create header
         createHeader: function(header){
-            if (!header.isInitialized) {
-                header.isInitialized = true;
+            if (!header.attr('isInitialized')) {
+                !header.attr('isInitialized', true);
                 header.html("");
                 var tr = $("<tr></tr>");
                 this.columnsCount = 0;
@@ -200,8 +204,12 @@ Created by: Luís Fernando Vendrame
                     self.search(false);
                 });
             }
-
-            th.append(document.createTextNode(headerName));
+            
+            if(typeof column.caption != "undefined"){
+                th.append(document.createTextNode(column.caption));
+            }else{
+                th.append(document.createTextNode(headerName));
+            }            
 
             if (typeof column.headerStyle != "undefined") {
                 th.css(column.headerStyle);
@@ -209,6 +217,10 @@ Created by: Luís Fernando Vendrame
 
             if (typeof column.headerClass != "undefined") {
                 th.addClass(column.headerClass);
+            }
+
+            if (typeof column.afterHeaderCreated != "undefined") {
+                column.afterHeaderCreated(th);
             }
         },
 
@@ -345,9 +357,9 @@ Created by: Luís Fernando Vendrame
 
             footer.html("").append(ftTr);
 
-            this.createPaginateSelect(ftTd);
+            this.createPages(ftTd);
 
-            this.createPages(ftTd);            
+            this.createPaginateSelect(ftTd);            
 
             this.createSumary(ftTd);
         },
@@ -696,9 +708,7 @@ Created by: Luís Fernando Vendrame
 
     $.fn[pluginName] = function (options, columns, language) {
         return this.each(function () {
-            if (!$.data(this, "plugin_" + pluginName)) {
-                $.data(this, "plugin_" + pluginName, new Gridify(this, options, columns, language));
-            }
+            $.data(this, "plugin_" + pluginName, new Gridify(this, options, columns, language));
         });
     };
 
