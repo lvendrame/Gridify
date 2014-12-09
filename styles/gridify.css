@@ -1,0 +1,228 @@
+/*
+    Gridify - 2013
+    Modified by: Luís Fernando Vendrame
+*/
+table.tblGdy
+{
+    border-style: none;
+}
+
+table.tblGdy tfoot tr td ul
+{
+    float: left;
+    border: none;
+    background-color: #dee4e9;
+    text-decoration: none;
+    color: #fff;
+    padding: 2px;
+    margin: 0px;
+    border-radius: 4px;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+}
+
+table.tblGdy tfoot tr td a
+{
+    float: left;
+    list-style-type: none;
+    cursor: pointer;
+    border: 1px solid #949a9e;
+    background-color: #fafafa;
+    text-decoration: none;
+    color: #65686b;
+    padding: 2px;
+    margin: 3px;
+    border-radius: 4px;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+}
+
+table.tblGdy thead tr th a
+{
+    padding-right: 4px;
+    text-decoration: none !important;
+    font-size: 10px;
+    color: #686868;
+    text-decoration: none;
+}
+
+table.tblGdy thead tr th
+{
+    font-family: Calibri;
+    color: #686868;
+    font-size: 12px;
+}
+
+.gdyEven
+{
+    background-color: #fff !important;
+}
+
+table.tblGdy tfoot tr
+{
+    border-style: none !important;
+}
+table.tblGdy tfoot tr td
+{
+    padding-top: 8px;
+    padding-bottom: 8px;
+    border-style: none !important;
+    /* tirar caso de pal */
+    background-color: #efefef;
+}
+
+tfoot tr td
+{
+    padding-top: 8px;
+    padding-bottom: 8px;
+    border-style: none !important;
+}
+
+.gdyOdd
+{
+    background-color: #ebebeb !important;
+}
+
+.gdyEven:hover, .gdyOdd:hover
+{
+    background-color: #cdd6dd !important;
+}
+
+.selectRowGdy
+{
+    background-color: #ccc;
+}
+
+.selectedPg
+{
+    background-color: #929da6 !important;
+    color: #fff !important;
+}
+
+.selectedPg:hover
+{
+    background-color: #abb6bf !important;
+}
+
+.selectedPg a
+{
+    color: #fff !important;
+}
+
+.gfy-Tmp
+{
+    border-radius: 4px;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+    background-color: #efefef;
+    padding: 0px 2px 2px 2px;
+    margin-left: 6px;
+}
+.gfy-Tmp span
+{
+    margin-left: 6px;
+    margin-right: 6px;
+    font-weight: bold;
+    color: #65686b;
+}
+.gdySumary
+{
+    border-radius: 4px;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+    background-color: #efefef;
+    padding: 15px 4px;
+    margin-right: 6px;
+    width: 230px !important;
+}
+.gdySumary span
+{
+    margin-left: 6px;
+    margin-right: 6px;
+    font-weight: bold;
+    color: #65686b;
+}
+.gfy-pg
+{
+    border-radius: 4px;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+    background-color: #efefef;
+    padding: 7px 4px 7px 4px;
+    position: absolute;
+    left: 48%;
+}
+.gfyFirst
+{
+    border-radius: 4px;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+    font-weight: bold;
+    color: #65686b;
+}
+.gfyLast
+{
+    border-radius: 4px;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+    font-weight: bold;
+    color: #65686b;
+}
+.gfyPrevious
+{
+    border-radius: 4px;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+    font-weight: bold;
+    color: #65686b;
+}
+.gfyNext
+{
+    border-radius: 4px;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+}
+
+.gfyPages
+{
+}
+
+.gfyDivFirst
+{
+    float:left;
+}
+
+.gfyDivLast
+{
+    float: left;
+}
+
+.gfyRollover
+{
+    width: 260px;
+    float: left;
+    overflow: hidden;
+    max-width:300px !important;
+    max-height:30px !important;
+}
+
+div.gfyRollover ul li
+{
+    display: inline;
+    float: left;
+    list-style-type: none;
+    cursor: pointer;
+    border: 1px solid #949a9e;
+    background-color: #fafafa;
+    text-decoration: none;
+    color: #65686b;
+    padding: 2px;
+    margin: 3px;
+    border-radius: 4px;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+}
+
+.modal .gfy-pg {
+    margin-top: 6px;
+}
