@@ -3,24 +3,23 @@ Gridify - 2013
 Created by: Luís Fernando Vendrame
 */
 'use strict';
-; (function ($, window, document, undefined) {
+(function(){
 
-    var pluginName = 'gridify',
-        defaults = {
-            search: function (page, pageSize, sortExpression, binder) { },
-            getTotalRows: function (setTotalRows) { },
+    const defaults = {
+            search: (page, pageSize, sortExpression)  => {},
+            getTotalRows: () => {},
             initialPage: 1,
             initialPageSize: 15,
             templateRow: null,
             autoSort: true,
             pageSizeOptions: [5, 10, 15, 25, 50],
-            onSelectRow: function (rowIndex, row, redrawRow) { },
+            onSelectRow: (rowIndex, row, redrawRow) => {},
             drawFooter: true,
             drawSelectPageSize: true,
             drawPages: true,
             drawSumary: true
         },
-        def_lang = {
+        defaults_language = {
             sumary: "Exibindo de {fromRow} até {toRow} de um total de {totalRows}",
             itensPerPageMessage: "Itens exibidos por página: ",
             emptyDataMessage: "Nenhum registro foi encontrado.",
@@ -28,11 +27,10 @@ Created by: Luís Fernando Vendrame
             page_next: "&gt;",
             page_first: "&lt;&lt;",
             page_last: "&gt;&gt;",
-            sort_none: "&#8597;",
-            sort_asc: "&#9660;",
-            sort_desc: "&#9650;"
-        },
-        self = null;
+            sort_none: "↕",
+            sort_asc: "↓",
+            sort_desc: "↑"
+        };
 
         //        columns{
         //            "header"{
@@ -65,15 +63,14 @@ Created by: Luís Fernando Vendrame
 
 
 
-    function Gridify(element, options, columns, language) {
-        this.element = element;
-        this.options = $.extend({}, defaults, options);
-        this.options.language = $.extend({}, def_lang, language);
+    function Gridify(elementSelector, options, columns, language) {
+        this.elementSelector = elementSelector;
+        this.container = document.querySelector(this.elementSelector);
+        this.options = Object.assign({}, defaults, options);
+        this.options.language = Object.assign({}, defaults_language, language);
         this.columns = columns;
 
         this._defaults = defaults;
-        this._name = pluginName;
-        self = this;
 
         this.init();
     }
@@ -96,266 +93,251 @@ Created by: Luís Fernando Vendrame
         },
 
         createBaseElements: function () {
-            var table = $(this.element);
+            const table = this.container;
 
-            var header = table.find("thead");
-            if (header.length == 0) {
-                header = $(document.createElement("thead"));
-                table.append(header);
+            let header = table.querySelector("thead");
+            if (!header) {
+                header = document.createElement("thead");
+                table.appendChild(header);
             } else {
-                header.removeAttr('isInitialized');
+                header.removeAttribute('isInitialized');
+            }            
+
+            let body = table.querySelector("tbody");
+            if (!body) {
+                body = document.createElement("tbody");
+                table.appendChild(body);
             }
 
-            var body = table.find("tbody");
-            if (body.length == 0) {
-                body = $(document.createElement("tbody"));
-                table.append(body);
-            }
-
-            var footer = table.find("tfoot");
-            if (footer.length == 0) {
-                footer = $(document.createElement("tfoot"));
-                table.append(footer);
+            let footer = table.querySelector("tfoot");
+            if (!footer) {
+                footer = document.createElement("tfoot");
+                table.appendChild(footer);
             } else {
-                footer.find("tr td").html("");
+                footer.querySelector("tr td").innerHTML = "";
             }
 
-            table.addClass('tblGdy');
+            table.classList.add('tblGdy');
             this.search(true);
         },
 
         //create header
         createHeader: function(header){
-            if (!header.attr('isInitialized')) {
-                !header.attr('isInitialized', true);
-                header.html("");
-                var tr = $("<tr></tr>");
+            if (!header.getAttribute('isInitialized')) {
+                !header.setAttribute('isInitialized', true);
+                header.innerHTML = "";
+
+                const tr = document.createElement("tr");
                 this.columnsCount = 0;
 
                 for (var headerName in this.columns) {
-                    this.createHeaderColumn(tr, this.columns[headerName], headerName);
+                    tr.appendChild(
+                        this.createHeaderColumn(this.columns[headerName], headerName)
+                    );
                     this.columnsCount++;
                 }
-                header.append(tr);
+                header.appendChild(tr);
             }
         },
 
-        createHeaderColumn: function(tr, column, headerName){
+        createHeaderColumn: function(column, headerName){
             
-            var th = $("<th></th>");
-            tr.append(th);            
+            const th = document.createElement("th");
+            const dataColumn = column.dataColumn || headerName;
 
-            if (typeof column.formatFunction == 'undefined')
-                column.formatFunction = function (item, data, dataName) {
-                    return typeof data != "undefined" && data != null ? data.toString() : ""; 
-                };
+            if (!column.formatFunction){
+                column.formatFunction = (item, data, dataName) => data && data.toString() || "";
+            }
 
+            if ((this.options.autoSort && dataColumn) || column.sortColumn) {
 
-            if ((this.options.autoSort && typeof column.dataColumn != "undefined") || typeof column.sortColumn != "undefined") {
-
-                var sortSymbol = this.options.language.sort_none,
+                let sortSymbol = this.options.language.sort_none,
                     _orderDir = 0;
-
-                if (typeof column.initialSort != "undefined") {
-                    if (column.initialSort == "asc") {
-                        sortSymbol = this.options.language.sort_asc;
-                        _orderDir = 1;
-                    }
-                    else if (column.initialSort == "desc") {
-                        sortSymbol = this.options.language.sort_desc;
-                        _orderDir = 2;
-                    }
-                }
-
-                var lnkS = document.createElement('a');
-                lnkS.href = 'javascript:void(0);';                
-                var sorter = $(lnkS);
-                sorter.html(sortSymbol);
                 
-                th.append(sorter);
-
-                if (typeof column.sortColumn != "undefined")
-                    lnkS.sortColumn = column.sortColumn;
-                else
-                    lnkS.sortColumn = column.dataColumn;
-
-                if (typeof column.initialSort != "undefined") {
-                    this.sortColumns[lnkS.sortColumn] = column.initialSort;
-                    lnkS.orderDir = _orderDir;
+                if (column.initialSort === "asc") {
+                    sortSymbol = this.options.language.sort_asc;
+                    _orderDir = 1;
+                } else if (column.initialSort === "desc") {
+                    sortSymbol = this.options.language.sort_desc;
+                    _orderDir = 2;
                 }
 
-                var self = this;
-                sorter.click(function () {
-                    if (!this.orderDir || this.orderDir == 0) {
-                        self.sortColumns[this.sortColumn] = "asc";
-                        this.orderDir = 1;
-                        sorter.html(self.options.language.sort_asc);
+                const sortLink = document.createElement('a');
+                sortLink.href = 'javascript:void(0);';
+                sortLink.textContent = sortSymbol;
+                th.appendChild(sortLink);
+
+                sortLink.sortColumn = column.sortColumn || dataColumn;
+
+                if (column.initialSort) {
+                    this.sortColumns[sortLink.sortColumn] = column.initialSort;
+                    sortLink.orderDir = _orderDir;
+                }
+
+                sortLink.addEventListener('click', () => {
+                    if (!sortLink.orderDir || sortLink.orderDir == 0) {
+                        this.sortColumns[sortLink.sortColumn] = "asc";
+                        sortLink.orderDir = 1;
+                        sortLink.textContent = this.options.language.sort_asc;
+                    } else if (sortLink.orderDir == 1) {
+                        this.sortColumns[sortLink.sortColumn] = "desc";
+                        sortLink.orderDir = 2;
+                        sortLink.textContent = this.options.language.sort_desc;
+                    } else {
+                        this.sortColumns[sortLink.sortColumn] = "none";
+                        sortLink.orderDir = 0;
+                        sortLink.textContent = this.options.language.sort_none;
                     }
-                    else if (this.orderDir == 1) {
-                        self.sortColumns[this.sortColumn] = "desc";
-                        this.orderDir = 2;
-                        sorter.html(self.options.language.sort_desc);
-                    }
-                    else {
-                        self.sortColumns[this.sortColumn] = "none";
-                        this.orderDir = 0;
-                        sorter.html(self.options.language.sort_none);
-                    }
-                    self.search(false);
+                    this.search(false);
                 });
             }
-            
-            if(typeof column.caption != "undefined"){
-                th.append(document.createTextNode(column.caption));
-            }else{
-                th.append(document.createTextNode(headerName));
-            }            
 
-            if (typeof column.headerStyle != "undefined") {
-                th.css(column.headerStyle);
+            th.appendChild(document.createTextNode(column.caption || headerName));
+
+            if (column.headerStyle) {
+                th.style.cssText = column.headerStyle;
             }
 
-            if (typeof column.headerClass != "undefined") {
-                th.addClass(column.headerClass);
+            if (column.headerClass) {
+                th.classList.add(column.headerClass);
             }
 
-            if (typeof column.afterHeaderCreated != "undefined") {
+            if (column.afterHeaderCreated) {
                 column.afterHeaderCreated(th);
             }
+
+            return th;
         },
 
-        createRow: function(body, item){
-            if (typeof item != 'function') {
+        createGrid: function(list, header, body){
+            this.createHeader(header);
 
-                var trEl = document.createElement('tr');
-                trEl.dataRow = item;
-                
-                var tr = $(trEl);
-                body.append(tr);
+            list.forEach(item => {
+                const row = this.createRow(item);
+                row && body.appendChild(row);
+            });
+        },
 
-                for (var headerName in this.columns) {
-                    this.createColumn(tr, item, this.columns[headerName], headerName);
+        createRow: function(item){
+            if (typeof item !== 'function') {
+
+                const tr = document.createElement('tr');
+                tr.dataRow = item;
+
+                for (let headerName in this.columns) {
+                    tr.appendChild(
+                        this.createColumn(item, this.columns[headerName], headerName, tr)
+                    );                    
                 }
+
+                return tr;
             }
         },
 
-        createColumn: function(tr, item, column, headerName){
-            var td = $(document.createElement('td')),
-                findData = /(\${)(\w*)(})/gi;
+        createColumn: function(item, column, headerName, parent){
+            const td = document.createElement('td'),
+                  findData = /\${(\w+)}/gi;
 
-            tr.append(td);
+            if (column.rowTemplate) {
+                let template = column.rowTemplate;
+                const matchs = template.match(findData);
 
-            if (typeof column.rowTemplate != "undefined") {
-                var template = column.rowTemplate;
-                var data = template.match(findData);
+                template = matchs.reduce((template, data) => {
+                    var dataName = data[idd].replace(findData, "$1");
+                    var dataValue = column.formatFunction(item, item[dataName], dataName);
+                    var rAux = new RegExp("(\\${)(" + dataName + ")(})", "gi");
+                    return template.replace(rAux, dataValue);
+                }, template);
 
                 for (var idd = 0; idd < data.length; idd++) {
-                    var dataName = data[idd].replace(findData, "$2");
+                    var dataName = data[idd].replace(findData, "$1");
                     var dataValue = column.formatFunction(item, item[dataName], dataName);
                     var rAux = new RegExp("(\\${)(" + dataName + ")(})", "gi");
                     template = template.replace(rAux, dataValue);
                 }
-                td.append($(template));
-            }
-            else if (typeof column.dataColumn != "undefined") {
-                var dataValue = null;
+
+                td.innerHTML = template;
+            } else if (column.dataColumn || headerName) {
+                const key = column.dataColumn || headerName;
+                let dataValue = null;
                 try {
-                    dataValue = column.formatFunction(item, item[column.dataColumn], column.dataColumn);
+                    dataValue = column.formatFunction(item, item[key], key);
                 } catch (e) {
-                    if (item[column.dataColumn] != undefined) {
-                        dataValue = item[column.dataColumn].toString();
-                    }
-                    else {
+                    if (item[key]) {
+                        dataValue = item[key].toString();
+                    } else {
                         dataValue = "";
                     }
                 }
-                td.append(dataValue);
+                td.innerHTML = dataValue;
             }
 
-            if (typeof column.showDetailRow != "undefined") {
-                td.click(function () {
-                    if (!this.isShowDetail) {
-                        this.isShowDetail = true;
+            if (column.showDetailRow) {
+                td.addEventListener('click', () => {
+                    if (!td.isShowDetail) {
+                        td.isShowDetail = true;
 
-                        var dtTr = document.createElement('tr'),
-                            dtTd = document.createElement('td');
+                        const dtTr = document.createElement('tr'),
+                              dtTd = document.createElement('td');
+                        
                         dtTr.appendChild(dtTd);
-                        dtTd.colSpan = self.columnsCount;
+                        dtTd.colSpan = this.columnsCount;
 
-                        var detail = $(dtTr);
-                        tr.after(detail);                        
-                        column.showDetailRow(dtTd, tr, function () {
-                            detail.remove();
+                        parent.parentNode.insertBefore(dtTr, parent);
+                        column.showDetailRow(dtTd, parent, () => {
+                            dtTr.remove();
                             td.isShowDetail = false;
                         });
                     }
                 });
             }
 
-            if (typeof column.style != "undefined") {
-                td.css(column.style);
+            if (column.style) {
+                td.style.cssText = column.style;
             }
 
-            if (typeof column.className != "undefined")
-                td.addClass(column.className);
+            if (column.className){
+                td.classList.add(column.className);
+            }
 
-            if (typeof column.afterCreated != "undefined") {
+            if (column.afterCreated) {
                 column.afterCreated(item, td);
             }
-        },
 
-        createGrid: function(list, header, body){
-            this.createHeader(header);
-            for (var idxl in list) {
-                var item = list[idxl];
-                this.createRow(body, item);
-            }
+            return td;
         },
                 
         /*Setar o total de linhas*/
         setTotalRows: function (totalRows) {
-            self.totalRows = totalRows;
+            this.totalRows = totalRows;
 
-            if (self.totalRows == 0) {
-                self.showEmptyDataMessage();
-            }
-            else {
-                self.options.search(self.page - 1, self.pageSize, self.getSortExpression(), self.binder);
+            if (this.totalRows == 0) {
+                this.showEmptyDataMessage();
+            } else {
+                this.options.search(this.page - 1, this.pageSize, this.getSortExpression())
+                    .then(data => this.render(data));
             }
         },
 
         getSortExpression: function () {
-            var sortExpression = "";
-            var addComma = false;
-
-            for (var sortColumn in this.sortColumns) {
-
-                var direction = this.sortColumns[sortColumn];
-
-                if (direction != 'none') {
-                    if (addComma) {
-                        sortExpression += ",";
-                    }
-                    else {
-                        addComma = true;
-                    }
-                    sortExpression += (sortColumn + " " + direction);
-                }
-            }
-
-            return sortExpression;
+            return Object.keys(this.sortColumns)
+                .filter(key => this.sortColumns[key] != 'none')
+                .map(key => key + " " + this.sortColumns[key])
+                .join(",");
         },
                 
         /*Criação do paginador*/
         paginate: function (footer) {
             if (!this.options.drawFooter) return;
-             
-            var ftTr = document.createElement('tr'),
-                ftTd = document.createElement('td');
+                
+            const ftTr = document.createElement('tr'),
+                  ftTd = document.createElement('td');
+
             ftTd.colSpan = this.columnsCount;
             ftTr.appendChild(ftTd);
 
-            footer.html("").append(ftTr);
+            footer.innerHTML = "";
+            footer.appendChild(ftTr);
 
             this.createPages(ftTd);
 
@@ -367,44 +349,40 @@ Created by: Luís Fernando Vendrame
         createPaginateSelect: function (td) {
             if (this.options.drawSelectPageSize) {
                 /*Criação do seletor de tamanho de página*/
-                var pgSelect = document.createElement("select");
-                this.dropdownSize = $(pgSelect);
-                this.dropdownSize.change(function () {
-                    self.pageSize = $(this).val();
-                    self.resetPageValues();
-                    self.paginate($(self.element).find('tfoot'));
-                    if (self.search) {
-                        self.search(false);
+                this.dropdownSize = document.createElement("select");
+                this.dropdownSize.addEventListener('change', () => {
+                    this.pageSize = parseInt(this.dropdownSize.options[this.dropdownSize.selectedIndex].value);
+
+                    this.resetPageValues();
+                    this.paginate(this.container.querySelector('tfoot'));
+                    if (this.search) {
+                        this.search(false);
                     }
                 });
 
-                var idxOpt = 0,
-                    len = this.options.pageSizeOptions.length;
+                this.options.pageSizeOptions.forEach((sizeOption, index) => {
+                    if (typeof sizeOption != 'function') {
+                        const option = document.createElement('option');
+                        option.value = sizeOption;
+                        option.text = sizeOption;
+                        this.dropdownSize.appendChild(option);                        
 
-                for (; idxOpt < len; idxOpt++) {
-                    var sizeOpt = this.options.pageSizeOptions[idxOpt];
-                    if (typeof sizeOpt != 'function') {
-                        var opt = document.createElement('option');
-                        opt.value = sizeOpt;
-                        opt.text = sizeOpt;
-                        pgSelect.appendChild(opt);                        
-
-                        if (sizeOpt == this.pageSize) {
-                            pgSelect.selectedIndex = idxOpt;
+                        if (sizeOption == this.pageSize) {
+                            this.dropdownSize.selectedIndex = index;
                         }
-                    }
-                }
+                    }                    
+                });
 
                 //Begin DropDownSize Add 
-                var _divTmp = document.createElement('div'),
-                    msgDdl = document.createElement('span');
+                const _divTmp = document.createElement('div'),
+                      msgDdl = document.createElement('span');
 
                 _divTmp.className = 'gfy-Tmp';
                 _divTmp.style.float = 'left';                
                 msgDdl.appendChild(document.createTextNode(this.options.language.itensPerPageMessage));
 
                 _divTmp.appendChild(msgDdl);
-                _divTmp.appendChild(pgSelect);
+                _divTmp.appendChild(this.dropdownSize);
 
                 td.appendChild(_divTmp);
                 //End DropDownSize
@@ -414,19 +392,18 @@ Created by: Luís Fernando Vendrame
         createPages: function (td) {
             if (this.options.drawPages) {
 
-                this.divPagging = $(td).find(".gfy-pg");
+                this.divPagging = td.querySelector('.gfy-pg');
 
-                if (this.divPagging.length != 0) {
-                    this.divPagging.html("");
+                if (this.divPagging) {
+                    this.divPagging.innerHTML = "";
                 } else {
-                    var divAux = document.createElement('div');
-                    divAux.className = 'gfy-pg';
-                    divAux.style.float = 'left';
-                    this.divPagging = $(divAux);
-                    td.appendChild(divAux);
+                    this.divPagging = document.createElement('div');
+                    this.divPagging.className = 'gfy-pg';
+                    this.divPagging.style.float = 'left';
+                    td.appendChild(this.divPagging);
                 }
 
-                var divFirst = document.createElement('div'),
+                const divFirst = document.createElement('div'),
                     divUl = document.createElement('div'),
                     divLast = document.createElement('div'),
                     first = document.createElement('a'),
@@ -464,96 +441,71 @@ Created by: Luís Fernando Vendrame
                 ulPages.className = 'gfyPages';
                 divUl.appendChild(ulPages);
 
-                this.divPagging.append(divFirst);
-                this.divPagging.append(divUl);
-                this.divPagging.append(divLast);
+                this.divPagging.appendChild(divFirst);
+                this.divPagging.appendChild(divUl);
+                this.divPagging.appendChild(divLast);
 
-                $(first).click(function () {
-                    self.selectPage(1);
+                first.addEventListener('click', () => this.selectPage(1));
+
+                previous.addEventListener('click', () => {
+                    if (this.page > 1) {                        
+                        this.selectPage(this.page - 1);
+                    }
                 });
 
-                var pg_scroll_interval;
-                $(previous).click(function () {
-                    if (self.page > 1)
-                        self.selectPage(self.page - 1);
-                })
-                .hover(
-                    function () {
-                        pg_scroll_interval = setInterval(function () {
-                                var left = $(divUl).scrollLeft() - 2;
-                                $(divUl).scrollLeft(left);
-                            }, 20);
-                    },
-                    function () {
-                        clearInterval(pg_scroll_interval);
-                    }
-                );
+                function addScrollControl(element, leftValue) {
+                    let pg_scroll_interval;
 
-                $(next).hover(
-                    function () {
-                        pg_scroll_interval = setInterval(function () {
-                                var left = $(divUl).scrollLeft() + 2;
-                                $(divUl).scrollLeft(left);
-                            }, 20);
-                    },
-                    function () {
-                        clearInterval(pg_scroll_interval);
-                    }
-                );
+                    element.addEventListener('mouseenter', () => {
+                        pg_scroll_interval = setInterval(() => {
+                            const left = divUl.scrollLeft + leftValue;
+                            divUl.scrollTo(0, left);
+                        }, 20);
+                    });
+                    
+                    element.addEventListener('mouseleave ', () => clearInterval(pg_scroll_interval));
+                }
 
-                $(first).hover(
-                    function () {
-                        pg_scroll_interval = setInterval(function () {
-                                var left = $(divUl).scrollLeft() - 10;
-                                $(divUl).scrollLeft(left);
-                            }, 20);
-                    },
-                    function () {
-                        clearInterval(pg_scroll_interval);
-                    }
-                );
+                addScrollControl(previous, -2);
+                
+                addScrollControl(next, 2);
 
-                $(last).hover(
-                    function () {
-                        pg_scroll_interval = setInterval(function () {
-                                var left = $(divUl).scrollLeft() + 10;
-                                $(divUl).scrollLeft(left);
-                            }, 20);
-                    },
-                    function () {
-                        clearInterval(pg_scroll_interval);
-                    }
-                );
+                addScrollControl(first, -10);
 
-                var aux = this.totalRows / this.pageSize,
-                    qtt = parseInt(aux),
+                addScrollControl(last, 10);
+
+                const aux = this.totalRows / this.pageSize;
+                let qtt = parseInt(aux),
                     idxPg = 1;
 
-                if (qtt < aux)
+                if (qtt < aux){
                     qtt++;
+                }
+
                 for (; idxPg <= qtt; idxPg++) {
-                    var li = document.createElement('li');
-                    li.id = 'lpg' + idxPg;
+                    const li = document.createElement('li');
+                    li.className = 'lpg' + idxPg;
                     li.appendChild(document.createTextNode(idxPg));
-                    (function(li, idxPg, self){
-                        $(li).click(function () {
-                            self.selectPage(idxPg);
-                        });
-                    })(li, idxPg, self);                    
+                    
+                    (function(self, idxPg){
+                        li.addEventListener('click', () => self.selectPage(idxPg));
+                    })(this, idxPg);
+
                     ulPages.appendChild(li);
                 }
 
-                $(next).click(function () {
-                    if (self.page < qtt)
-                        self.selectPage(self.page + 1);
+                next.addEventListener('click', () => {
+                    if (this.page < qtt){
+                        this.selectPage(this.page + 1);
+                    }
                 });
 
-                $(last).click(function () {
-                    self.selectPage(qtt);
+                last.addEventListener('click', () => {
+                    this.selectPage(qtt);
                 });
 
                 /*Begin - Start calc ul pages width */
-                var lenghtPages = 0,
+                let lenghtPages = 0,
                     qttItems = qtt,
                     itSize = 19,
                     itDec = 9;
@@ -561,8 +513,7 @@ Created by: Luís Fernando Vendrame
                 while (qttItems > 0) {
                     if (qttItems > itDec) {
                         lenghtPages += (itDec * itSize);
-                    }
-                    else {
+                    } else {
                         lenghtPages += (qttItems * itSize);
                     }
 
@@ -572,64 +523,64 @@ Created by: Luís Fernando Vendrame
                 }
                 /*End - Start calc ul pages width */
 
-                $(ulPages).find("#lpg" + this.page).toggleClass("selectedPg");
+                ulPages.querySelector(".lpg" + this.page).classList.toggle("selectedPg");
 
                 ulPages.style.width = lenghtPages < 256 ? '256px' : lenghtPages + 'px';
 
-                this.divPagging.css("margin-left", -(this.divPagging.width() / 2));
+                this.divPagging.style.marginLeft = (-(this.divPagging.width / 2)) + 'px';
 
-                var scrollTo = $(divUl).find("#lpg" + this.page).offset().left - $(divUl).offset().left;
-                $(divUl).scrollLeft(scrollTo - 80);
+                const scrollTo = divUl.querySelector(".lpg" + this.page).offsetLeft - divUl.offsetleft;
+                divUl.scrollTo(0, scrollTo - 80);
             }
         },
 
         createSumary: function (td) {
             if (!this.options.drawSumary) return;            
 
-            var divNumbers = $(td).find(".gdySumary")
-            if (divNumbers.length == 0) {
-                var aux = document.createElement('div');
-                aux.className = 'gdySumary';
-                aux.style.float = 'right';
-                td.appendChild(aux);
-
-                divNumbers = $(aux);
+            let divNumbers = td.querySelector(".gdySumary");
+            if (!divNumbers) {
+                divNumbers = document.createElement('div');
+                divNumbers.className = 'gdySumary';
+                divNumbers.style.float = 'right';
+                td.appendChild(divNumbers);
+            } else {
+                divNumbers.innerHTML = "";
             }
-            else {
-                divNumbers.html("");
-            }
-            var total = this.toRow < this.totalRows ? this.toRow : this.totalRows;
+            const total = this.toRow < this.totalRows ? this.toRow : this.totalRows;
 
-            var sumary = this.options.language.sumary.replace(/({fromRow})/gi, this.fromRow)
+            const sumary = this.options.language.sumary
+                .replace(/({fromRow})/gi, this.fromRow)
                 .replace(/({toRow})/gi, total)
                 .replace(/({totalRows})/gi, this.totalRows);
-            var span = document.createElement('span');
+
+            const span = document.createElement('span');
             span.appendChild(document.createTextNode(sumary));
             
-            divNumbers.append(span);
+            divNumbers.appendChild(span);
         },
 
         /* Seleção de Página */
         selectPage: function (page) {
-            $("#lpg" + this.page).toggleClass("selectedPg");
+            this.container.querySelector(".lpg" + this.page).classList.toggle("selectedPg");
+
             this.page = page;
-            var pgAux = page - 1;
+            const pgAux = page - 1;
             this.fromRow = (this.pageSize * pgAux) + 1;
             this.toRow = (this.pageSize * (pgAux + 1));
             if (this.toRow > this.totalRows)
                 this.toRow = this.totalRows;
 
-            var ftTd = $(this.element).find('tfoot tr td');
+            const ftTd = this.container.querySelector('tfoot tr td');
             this.createSumary(ftTd);
 
-            var newLiPg = $("#lpg" + this.page),
-                divUl = $(this.element).find('.gfyRollover');
+            const newLiPg = this.container.querySelector(".lpg" + this.page),
+                  divUl = this.container.querySelector('.gfyRollover');
             
-            newLiPg.toggleClass("selectedPg");
+            newLiPg.classList.toggle("selectedPg");
             
-            divUl.scrollLeft(0);
-            var scrollTo = newLiPg.offset().left - divUl.offset().left;
-            divUl.scrollLeft(scrollTo - 80);
+            divUl.scrollTo(0, 0);
+            var scrollTo = newLiPg.offsetLeft - divUl.offsetLeft;
+            divUl.scrollTo(0, scrollTo - 80);
 
             if (this.search) {
                 this.search(false);
@@ -637,12 +588,18 @@ Created by: Luís Fernando Vendrame
         },
 
         showEmptyDataMessage: function () {
-            $(this.element).html("<tr><td>" + this.options.language.emptyDataMessage + "</td></tr>");
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+            cell.appendChild(document.createTextNode(this.options.language.emptyDataMessage));
+            row.appendChild(cell);
+            
+            this.container.innerHTML = "";
+            this.container.appendChild(row);
         },
         
         /* Alimentação da Estrutura da Página */
-        binder: function (result) {
-            var list;
+        render: function (result) {
+            let list;
             if (typeof (result) == "string"){
                 if(typeof(JSON) != 'undefined'){
                     list = JSON.parse(result);
@@ -653,63 +610,82 @@ Created by: Luís Fernando Vendrame
                 list = result;
             }
             
-            var jEl = $(self.element),
-                header = jEl.find('thead'),
-                body = jEl.find('tbody'),
-                footer = jEl.find('tfoot');
+            const header = this.container.querySelector('thead'),
+                  body = this.container.querySelector('tbody'),
+                  footer = this.container.querySelector('tfoot');
 
-            body.html("");
+            body.innerHTML = "";
 
-            if (self.columns !== undefined && typeof (self.columns) == 'object') {
-                self.createGrid(list, header, body);                
-            }
-            else {
-                $(self.options.language.templateRow).tmpl(list).appendTo(body);
+            if (this.columns && typeof (this.columns) === 'object') {
+                this.createGrid(list, header, body);                
+            } else {
+                this.processTemplate(body, this.options.language.templateRow, list);
             }
 
             /* Definições de cor*/
-            body.find("tr:even").addClass('gdyEven');
-            body.find("tr:odd").addClass('gdyOdd');
-            
-            body.find("tr").hover(function () {
-                $(this).toggleClass("selectRowGdy");
-            })
-            /* Seleção de Row*/
-            .click(function () {
-                var row = $(this);
-                var item = this.dataRow;
-                self.selectedRow = jEl.find("tr").index(row);
-                row.rebinder = function (result) {
-                    row.html($(self.options.templateRow).tmpl(list).find("td"));
-                };
-                self.options.onSelectRow(self.selectedRow, row, row.rebinder, item);
+            body.querySelectorAll("tr:nth-child(even)").forEach(function(el){ el.classList.add('gdyEven'); });
+            body.querySelectorAll("tr:nth-child(odd)").forEach(function(el){ el.classList.add('gdyOdd'); });
+                        
+            body.querySelectorAll("tr").forEach(function(row){
+                function toggleClass(){
+                    row.classList.toggle("selectRowGdy");
+                }
+
+                row.addEventListener("mouseenter", toggleClass);
+                row.addEventListener("mouseleave", toggleClass);
+                
+                row.addEventListener("click", function () {
+                    const item = row.dataRow;
+                    this.selectedRow = Array.prototype.indexOf.call(this.container.querySelector("tr").children, row);
+
+                    row.rerender = (result) => {
+                        const dummy = document.createElement("table");
+                        this.processTemplate(dummy, this.options.templateRow, data);
+    
+                        row.innerHTML = "";
+                        row.appendChild(dummy.querySelector("td").cloneNode(true));
+                    };
+
+                    this.options.onSelectRow(this.selectedRow, row, row.rerender, item);
+                });
             });
 
-            self.paginate(footer);
-            footer.show();
+            this.paginate(footer);
 
-            if (typeof self.divPagging != 'undefined') {
-                window.setTimeout(function () {
-                    self.divPagging.css("margin-left", -(self.divPagging.width() / 2));
+            if (this.divPagging) {
+
+                window.setTimeout(() => {
+                    this.divPagging.style.marginLeft =  "" + (-(this.divPagging.width / 2));
                 }, 100);
             }
+        },
+
+        processTemplate: function(container, template, data){
+            container.innerHTML = data.reduce(function(content, item) {
+                return content + processTemplateLine(template, item);
+            }, "");
+        },
+
+        processTemplateLine: function(template, item){            
+            return Object.keys(item)
+                .reduce(function(processingText, key){
+                    return processingText.replace("${" + key + "}", item[key]);
+                }, template);
         },
         
         /* Busca novos dados */
         search: function (newSearch) {
             if (newSearch) {
-                this.options.getTotalRows(this.setTotalRows);
-            }
-            else {
-                this.options.search(this.page - 1, this.pageSize, this.getSortExpression(), this.binder);
+                this.options.getTotalRows()
+                    .then(data => this.setTotalRows(data));
+            } else {
+                this.options.search(this.page - 1, this.pageSize, this.getSortExpression())
+                    .then(data => this.render(data));
             }
         }
     };
 
-    $.fn[pluginName] = function (options, columns, language) {
-        return this.each(function () {
-            $.data(this, "plugin_" + pluginName, new Gridify(this, options, columns, language));
-        });
-    };
+    window.Gridify = Gridify;
 
-})(window.jQuery, window, document);
+})();
+

@@ -1,12 +1,13 @@
 {
-	"name": "Gridify",
+	"name": "gridify",
 	"version": "1.2.0",
-	"description": "Gridify for jQuery",
+	"description": "Gridify",
 	"main": "gridify.js",
 	"scripts": {
-	"test": "echo \"Error: no test specified\" && exit 1"
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"build": "webpack script/gridify.js --output-filename=bundle.js"
 	},
-	"repository": {    
+	"repository": {
 		"type": "git",
 		"url": "git@github.com:lvendrame/Gridify.git"
 	},
@@ -16,9 +17,10 @@
 		"table",
 		"grid"
 	],
-	"author": "Luís Fernando Vendrame",
+	"author": "LuÃ­s Fernando Vendrame",
 	"license": "MIT",
 	"devDependencies": {
-		"jQuery": "1.4.x"
+		"webpack": "^5.39.1",
+		"webpack-cli": "^4.7.2"
 	}
 }

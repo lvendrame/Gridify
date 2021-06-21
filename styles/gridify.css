@@ -93,20 +93,20 @@ tfoot tr td
     background-color: #ccc;
 }
 
-.selectedPg
+div.gfyRollover ul li.selectedPg
 {
-    background-color: #929da6 !important;
-    color: #fff !important;
+    background-color: #929da6;
+    color: #fff;
 }
 
-.selectedPg:hover
+div.gfyRollover ul li.selectedPg:hover
 {
-    background-color: #abb6bf !important;
+    background-color: #abb6bf;
 }
 
-.selectedPg a
+div.gfyRollover ul li.selectedPg a
 {
-    color: #fff !important;
+    color: #fff;
 }
 
 .gfy-Tmp
@@ -118,6 +118,7 @@ tfoot tr td
     padding: 0px 2px 2px 2px;
     margin-left: 6px;
 }
+
 .gfy-Tmp span
 {
     margin-left: 6px;
@@ -125,6 +126,7 @@ tfoot tr td
     font-weight: bold;
     color: #65686b;
 }
+
 .gdySumary
 {
     border-radius: 4px;
@@ -133,8 +135,9 @@ tfoot tr td
     background-color: #efefef;
     padding: 15px 4px;
     margin-right: 6px;
-    width: 230px !important;
+    width: 230px;
 }
+
 .gdySumary span
 {
     margin-left: 6px;
@@ -142,6 +145,7 @@ tfoot tr td
     font-weight: bold;
     color: #65686b;
 }
+
 .gfy-pg
 {
     border-radius: 4px;
@@ -149,9 +153,9 @@ tfoot tr td
     -webkit-border-radius: 4px;
     background-color: #efefef;
     padding: 7px 4px 7px 4px;
-    position: absolute;
     left: 48%;
 }
+
 .gfyFirst
 {
     border-radius: 4px;
@@ -160,6 +164,7 @@ tfoot tr td
     font-weight: bold;
     color: #65686b;
 }
+
 .gfyLast
 {
     border-radius: 4px;
@@ -168,6 +173,7 @@ tfoot tr td
     font-weight: bold;
     color: #65686b;
 }
+
 .gfyPrevious
 {
     border-radius: 4px;
@@ -176,6 +182,7 @@ tfoot tr td
     font-weight: bold;
     color: #65686b;
 }
+
 .gfyNext
 {
     border-radius: 4px;
